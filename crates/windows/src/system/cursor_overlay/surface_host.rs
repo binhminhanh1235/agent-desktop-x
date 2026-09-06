@@ -18,6 +18,7 @@ pub(crate) use imp::SurfaceHost;
 
 #[cfg(target_os = "windows")]
 mod imp {
+    use super::super::presentation::{Presentation, RestState};
     use crate::system::cursor_overlay::{
         animation, fade, geometry, label, monitors, render, reveal::Reveal, schedule,
         session_state, text, topology::DisplayTopology, window::OverlayWindow,
@@ -31,29 +32,6 @@ mod imp {
     /// Thirteen hops, matching the reference, which is enough that the fade
     /// reads as continuous without costing a frame per pixel row.
     const REST_FADE_STEPS: u32 = 13;
-
-    /// The three things a frame is composed from, plus when the card began
-    /// appearing.
-    ///
-    /// The reveal instant belongs here rather than beside the rest state
-    /// because it is a property of the label: it is set when the label
-    /// changes and read while the card is drawn.
-    struct Presentation {
-        style: CursorOverlayStyle,
-        pose: Point,
-        label: Option<String>,
-        reveal: Reveal,
-    }
-
-    /// Whether the overlay has faded out, and how long it has been quiet.
-    ///
-    /// The overlay does not sit on screen indefinitely after the last
-    /// instruction: it fades and orders itself away, and the next control
-    /// brings it straight back at full strength.
-    struct RestState {
-        resting: bool,
-        quiet_since: Instant,
-    }
 
     pub(crate) struct SurfaceHost {
         window: OverlayWindow,
@@ -110,14 +88,20 @@ mod imp {
                 CursorOverlayControl::Hide { .. } | CursorOverlayControl::Disable { .. } => {
                     self.clear();
                 }
-                CursorOverlayControl::Present { instruction, .. } => {
-                    if instruction.phase() == CursorPhase::Travel {
-                        self.travel(
-                            instruction.destination().clone(),
-                            instruction.target().cloned(),
-                        );
-                    }
-                }
+                CursorOverlayControl::Present { instruction, .. } => match instruction.phase() {
+                    CursorPhase::Travel => self.travel(
+                        instruction.destination().clone(),
+                        instruction.target().cloned(),
+                    ),
+                    CursorPhase::Drag => self.take_drag_origin(
+                        instruction
+                            .drag_from()
+                            .unwrap_or_else(|| instruction.destination())
+                            .clone(),
+                        instruction.target().cloned(),
+                    ),
+                    CursorPhase::Effect => {}
+                },
             }
         }
 
@@ -140,7 +124,9 @@ mod imp {
                 CursorOverlayControl::Present { instruction, .. } => {
                     let target = instruction.target().cloned();
                     match instruction.phase() {
-                        CursorPhase::Travel => self.play_reveal(target.as_ref(), interrupt),
+                        CursorPhase::Travel | CursorPhase::Drag => {
+                            self.play_reveal(target.as_ref(), interrupt);
+                        }
                         CursorPhase::Effect => self.effect(
                             instruction.destination().clone(),
                             target,
@@ -151,6 +137,21 @@ mod imp {
                 }
                 CursorOverlayControl::Hide { .. } | CursorOverlayControl::Disable { .. } => {}
             }
+        }
+
+        /// Travels to where a drag begins and stays there.
+        ///
+        /// The reference arms pointer tracking here, so its overlay follows
+        /// the real pointer for the length of the drag and draws a trail
+        /// behind it. This does not, and the reason is the platform's own
+        /// rule rather than an omission: a drag is physical input, headed
+        /// actions hand the pointer to the operator, and this overlay is
+        /// suppressed for the rest of a session that takes one. Standing at
+        /// the origin is the whole of what can be shown truthfully, and it is
+        /// shown before the acknowledgement because a drag is a pre-dispatch
+        /// control that its caller blocks on.
+        fn take_drag_origin(&mut self, origin: Point, target: Option<Rect>) {
+            self.travel(origin, target);
         }
 
         /// Plays the motion core computed, then leaves the cursor at its

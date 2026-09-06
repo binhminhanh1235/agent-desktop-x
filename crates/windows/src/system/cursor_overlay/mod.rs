@@ -25,6 +25,7 @@ pub(crate) mod label;
 pub(crate) mod monitors;
 pub(crate) mod peer;
 pub(crate) mod pipe_name;
+pub(crate) mod presentation;
 pub(crate) mod raster;
 pub(crate) mod render;
 pub(crate) mod retire;

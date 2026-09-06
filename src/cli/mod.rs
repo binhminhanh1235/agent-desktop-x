@@ -1,5 +1,6 @@
 use clap::Subcommand;
 
+mod identity;
 mod post_action_wait;
 mod root;
 
@@ -202,7 +203,7 @@ impl Commands {
             Self::Collapse(_) => CommandMetadata::new("collapse", true),
             Self::Scroll(_) => CommandMetadata::new("scroll", true),
             Self::ScrollTo(_) => CommandMetadata::new("scroll-to", true),
-            Self::Press(_) => CommandMetadata::new("press", false),
+            Self::Press(_) => CommandMetadata::new("press", true),
             Self::KeyDown(_) => CommandMetadata::new("key-down", false),
             Self::KeyUp(_) => CommandMetadata::new("key-up", false),
             Self::Hover(_) => CommandMetadata::new("hover", true),
@@ -335,3 +336,6 @@ mod contract_tests;
 #[cfg(test)]
 #[path = "contract_command_surface_tests.rs"]
 mod contract_command_surface_tests;
+
+#[cfg(test)]
+mod agent_identity_tests;
