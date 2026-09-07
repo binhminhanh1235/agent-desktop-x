@@ -179,5 +179,3 @@ fn text_wait_with_count_zero_detects_absence() {
     assert_eq!(value["found"], true);
     assert_eq!(value["count"], 0);
 }
-
-

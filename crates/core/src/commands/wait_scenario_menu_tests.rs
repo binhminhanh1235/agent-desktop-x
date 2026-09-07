@@ -1,6 +1,6 @@
 use super::*;
-use crate::adapter::{ActionOps, InputOps, ObservationOps, SystemOps};
 use crate::AdapterError;
+use crate::adapter::{ActionOps, InputOps, ObservationOps, SystemOps};
 
 struct MenuWaitAdapter {
     open_seen: std::sync::Mutex<Option<bool>>,
