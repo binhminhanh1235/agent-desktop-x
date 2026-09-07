@@ -380,6 +380,12 @@ mod tests;
 #[cfg(test)]
 #[path = "wait_scenario_tests.rs"]
 mod scenario_tests;
+#[cfg(test)]
+#[path = "wait_scenario_count_tests.rs"]
+mod scenario_count_tests;
+#[cfg(test)]
+#[path = "wait_scenario_menu_tests.rs"]
+mod scenario_menu_tests;
 
 #[cfg(test)]
 #[path = "wait_element_tests.rs"]
