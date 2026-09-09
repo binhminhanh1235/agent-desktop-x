@@ -2,12 +2,7 @@ use agent_desktop_core::{AppError, ErrorPayload, PlatformAdapter};
 use serde_json::{Map, Value, json};
 
 const MODERN_PROTOCOL: &str = "2026-07-28";
-const LEGACY_PROTOCOLS: &[&str] = &[
-    "2025-11-25",
-    "2025-06-18",
-    "2025-03-26",
-    "2024-11-05",
-];
+const LEGACY_PROTOCOLS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
 pub(super) fn parse_error() -> Value {
     error_response(Value::Null, -32700, "Parse error", None)
@@ -17,11 +12,7 @@ pub(super) fn invalid_request() -> Value {
     error_response(Value::Null, -32600, "Invalid Request", None)
 }
 
-pub(super) fn handle(
-    request: Value,
-    adapter: &dyn PlatformAdapter,
-    headed: bool,
-) -> Option<Value> {
+pub(super) fn handle(request: Value, adapter: &dyn PlatformAdapter, headed: bool) -> Option<Value> {
     let object = match request.as_object() {
         Some(object) => object,
         None => return Some(invalid_request()),
@@ -87,7 +78,10 @@ fn call_tool(
             "Unknown MCP tool '{name}'"
         )));
     }
-    let arguments = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
+    let arguments = params
+        .get("arguments")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     if !arguments.is_object() && !arguments.is_null() {
         return Err(ProtocolError::invalid_params(
             "tools/call arguments must be an object",
@@ -248,10 +242,7 @@ fn attach_modern_metadata(result: &mut Value) {
         .entry("_meta".to_string())
         .or_insert_with(|| Value::Object(Map::new()));
     if let Some(meta) = meta.as_object_mut() {
-        meta.insert(
-            "io.modelcontextprotocol/serverInfo".into(),
-            server_info(),
-        );
+        meta.insert("io.modelcontextprotocol/serverInfo".into(), server_info());
     }
 }
 
