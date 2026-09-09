@@ -38,7 +38,7 @@ pub(super) fn read_resource(uri: &str) -> Result<Value, AppError> {
                 "uri": uri,
                 "mimeType": "application/json",
                 "text": serde_json::to_string_pretty(&skills::list()?)
-                    .map_err(|error| AppError::internal(error.to_string()))?
+                    .map_err(|error| AppError::Internal(error.to_string()))?
             }]
         }));
     }
@@ -63,7 +63,7 @@ pub(super) fn read_resource(uri: &str) -> Result<Value, AppError> {
     let content = value
         .get("content")
         .and_then(Value::as_str)
-        .ok_or_else(|| AppError::internal("Bundled skill did not return markdown content"))?;
+        .ok_or_else(|| AppError::Internal("Bundled skill did not return markdown content".to_string()))?;
 
     Ok(json!({
         "contents": [{
