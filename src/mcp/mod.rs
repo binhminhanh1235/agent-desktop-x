@@ -11,7 +11,17 @@ use std::io::{self, BufRead, BufWriter, Write};
 use std::process::ExitCode;
 
 pub(crate) fn requested() -> bool {
-    std::env::args_os().any(|argument| argument == OsStr::new("--mcp"))
+    let arguments = std::env::args_os().collect::<Vec<_>>();
+    let mcp = arguments
+        .iter()
+        .any(|argument| argument == OsStr::new("--mcp"));
+    let help_or_version = arguments.iter().any(|argument| {
+        matches!(
+            argument.to_str(),
+            Some("-h" | "--help" | "-V" | "--version")
+        )
+    });
+    mcp && !help_or_version
 }
 
 pub(crate) fn run() -> ExitCode {
@@ -69,7 +79,7 @@ fn serve(adapter: &dyn PlatformAdapter, headed: bool) -> io::Result<()> {
 }
 
 fn headed_requested() -> bool {
-    std::env::args_os().any(|argument| argument == OsStr::new("--mcp-headed"))
+    std::env::args_os().any(|argument| argument == OsStr::new("--headed"))
         || std::env::var("AGENT_DESKTOP_MCP_HEADED")
             .ok()
             .is_some_and(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES"))
