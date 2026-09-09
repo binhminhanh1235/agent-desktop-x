@@ -147,14 +147,13 @@ fn entry() -> RefEntry {
 fn failed_scroll_recovery_surfaces_the_original_actionability_error() {
     let adapter = ScrollRecoveryAdapter::new(true, true);
 
-    let error =
-        execute_entry_with_context(
-            &adapter,
-            &entry(),
-            ActionRequest::headless(Action::Expand),
-            &CommandContext::default(),
-        )
-        .unwrap_err();
+    let error = execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headless(Action::Expand),
+        &CommandContext::default(),
+    )
+    .unwrap_err();
 
     assert_eq!(error.code, ErrorCode::ActionFailed);
     assert!(
@@ -208,14 +207,13 @@ fn scroll_recovery_success_lets_the_action_proceed() {
 fn scroll_recovery_that_leaves_the_target_unactionable_still_fails() {
     let adapter = ScrollRecoveryAdapter::new(true, false);
 
-    let error =
-        execute_entry_with_context(
-            &adapter,
-            &entry(),
-            ActionRequest::headless(Action::Expand),
-            &CommandContext::default(),
-        )
-        .unwrap_err();
+    let error = execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headless(Action::Expand),
+        &CommandContext::default(),
+    )
+    .unwrap_err();
 
     assert_eq!(error.code, ErrorCode::ActionFailed);
     assert!(
