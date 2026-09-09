@@ -126,7 +126,9 @@ pub(super) fn get_prompt(params: &Value) -> Result<Value, AppError> {
     let content = value
         .get("content")
         .and_then(Value::as_str)
-        .ok_or_else(|| AppError::Internal("Bundled skill did not return markdown content".to_string()))?;
+        .ok_or_else(|| {
+            AppError::Internal("Bundled skill did not return markdown content".to_string())
+        })?;
 
     Ok(json!({
         "description": format!("Bundled skill '{skill_name}'"),
