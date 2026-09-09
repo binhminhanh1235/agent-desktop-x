@@ -34,6 +34,8 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 
 Status: READY
 
+Implementation prompt: `docs/prompts/agent-runtime-optimization-p0a.md`
+
 ### Objective
 
 Reduce repeated accessibility/provider work by caching semantic selector knowledge while keeping live platform element references short-lived and generation-bound.
