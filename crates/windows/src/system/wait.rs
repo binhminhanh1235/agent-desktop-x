@@ -8,6 +8,7 @@ use super::menu_state::menu_is_open;
 use super::process_identity;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
+const UNRESPONSIVE_EXIT_GRACE: Duration = Duration::from_millis(500);
 
 /// Polls the [`menu_is_open`] predicate until the target process's
 /// menu-open state equals `open`, then returns `Ok(())`.
@@ -60,6 +61,10 @@ pub(crate) fn wait_for_menu(
             }
             Ok(_) => {}
             Err(error) if error.code == ErrorCode::Timeout => {}
+            Err(error) if error.code == ErrorCode::AppUnresponsive => {
+                classify_unresponsive_process(&process, deadline)?;
+                return Err(error);
+            }
             Err(error) => {
                 verify_process_alive(&process)?;
                 return Err(error);
@@ -102,6 +107,34 @@ fn verify_process_alive(process: &ProcessIdentity) -> Result<(), AdapterError> {
         Ok(())
     } else {
         Err(stale_process_error(process))
+    }
+}
+
+/// Distinguishes a process that is briefly still alive while exiting from a
+/// genuinely live but unresponsive target. UI Automation can stop responding
+/// before the process handle reaches its terminal state, so an immediate
+/// identity re-check is not enough to classify that edge reliably. The grace
+/// is bounded, never re-reads the UI predicate, and never outlives the caller's
+/// deadline. If the same process generation remains alive throughout it, the
+/// original `AppUnresponsive` is preserved by the caller.
+fn classify_unresponsive_process(
+    process: &ProcessIdentity,
+    deadline: Deadline,
+) -> Result<(), AdapterError> {
+    let stop_at = std::time::Instant::now() + UNRESPONSIVE_EXIT_GRACE;
+    loop {
+        verify_process_alive(process)?;
+        let now = std::time::Instant::now();
+        if now >= stop_at || deadline.is_expired() {
+            return Ok(());
+        }
+        let remaining_grace = stop_at.saturating_duration_since(now);
+        let slice = remaining_grace.min(POLL_INTERVAL);
+        let pause = match deadline.remaining_slice(slice) {
+            Ok(pause) => pause,
+            Err(_) => return Ok(()),
+        };
+        std::thread::sleep(pause);
     }
 }
 
