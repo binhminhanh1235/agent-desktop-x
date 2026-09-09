@@ -15,6 +15,7 @@ fn multiple_liveness_owners_do_not_serialize_each_other() {
     })
     .unwrap();
     manifest.created_at = 0;
+    manifest.ended_at = Some(0);
     write_manifest(&manifest).unwrap();
 
     let first = acquire_liveness_lease(&manifest.id).unwrap().unwrap();
