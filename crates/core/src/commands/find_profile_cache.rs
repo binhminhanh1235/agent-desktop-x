@@ -67,45 +67,58 @@ pub(super) fn resolve(
             Ok(resolution)
         }
         CacheLookup::Hit(profile) => resolve_hit(
-            key, *profile, args, query, adapter, context, window, request,
+            key,
+            *profile,
+            ResolveHitContext {
+                args,
+                query,
+                adapter,
+                context,
+                window,
+                request,
+            },
         ),
     }
+}
+
+struct ResolveHitContext<'a> {
+    args: &'a FindArgs,
+    query: &'a LocatorQuery,
+    adapter: &'a dyn PlatformAdapter,
+    context: &'a CommandContext,
+    window: &'a WindowInfo,
+    request: &'a LocatorResolveRequest,
 }
 
 fn resolve_hit(
     key: AppProfileKey,
     profile: AppProfile,
-    args: &FindArgs,
-    query: &LocatorQuery,
-    adapter: &dyn PlatformAdapter,
-    context: &CommandContext,
-    window: &WindowInfo,
-    request: &LocatorResolveRequest,
+    hit: ResolveHitContext<'_>,
 ) -> Result<LocatorResolution, AppError> {
-    if !profile.window_matches(window, args.surface) {
+    if !profile.window_matches(hit.window, hit.args.surface) {
         app_profile_cache::invalidate(&key)?;
         emit(
-            context,
+            hit.context,
             "invalidated",
             "window_signature_changed",
             &LookupStats::default(),
         )?;
-        let resolution = cold(query, adapter, window, request)?;
+        let resolution = cold(hit.query, hit.adapter, hit.window, hit.request)?;
         learn_after_cold(
             &key,
-            window,
-            args,
+            hit.window,
+            hit.args,
             &resolution,
-            context,
+            hit.context,
             "revalidated",
             "cold_after_window_change",
         )?;
         return Ok(resolution);
     }
 
-    let same_generation = profile.live_generation_matches(window);
+    let same_generation = profile.live_generation_matches(hit.window);
     emit(
-        context,
+        hit.context,
         if same_generation {
             "live_hit"
         } else {
@@ -124,7 +137,7 @@ fn resolve_hit(
     )?;
     if !same_generation {
         emit(
-            context,
+            hit.context,
             "invalidated",
             "live_generation_changed",
             &LookupStats::default(),
@@ -133,16 +146,21 @@ fn resolve_hit(
 
     let warm_context = WarmContext {
         profile: &profile,
-        window,
-        args,
-        adapter,
-        request,
+        window: hit.window,
+        args: hit.args,
+        adapter: hit.adapter,
+        request: hit.request,
     };
     match warm_context.resolve(same_generation)? {
         WarmAttempt::Resolved(warm) => {
             let warm = *warm;
             app_profile_cache::store(key, warm.refreshed)?;
-            emit(context, "revalidated", "warm_semantic_target", &warm.stats)?;
+            emit(
+                hit.context,
+                "revalidated",
+                "warm_semantic_target",
+                &warm.stats,
+            )?;
             Ok(warm.resolution)
         }
         WarmAttempt::Miss {
@@ -153,14 +171,14 @@ fn resolve_hit(
             if status == "ambiguous" {
                 app_profile_cache::invalidate(&key)?;
             }
-            emit(context, status, reason, &stats)?;
-            let resolution = cold(query, adapter, window, request)?;
+            emit(hit.context, status, reason, &stats)?;
+            let resolution = cold(hit.query, hit.adapter, hit.window, hit.request)?;
             learn_after_cold(
                 &key,
-                window,
-                args,
+                hit.window,
+                hit.args,
                 &resolution,
-                context,
+                hit.context,
                 if resolution.meta.total_matches > 1 {
                     "ambiguous"
                 } else {

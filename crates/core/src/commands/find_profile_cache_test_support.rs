@@ -1,6 +1,6 @@
 use super::{FindArgs, FindFilterArgs, FindSelectionArgs, locator_query_from_args};
 use crate::{
-    AccessibilityNode, AdapterError, ElementIdentifier, IdentifierEvidence, IdentifierKind,
+    AccessibilityNode, AdapterError, ElementIdentifier, ErrorCode, IdentifierEvidence, IdentifierKind,
     LiveElement, LiveIdentity, LocatorField, NodeIdentity, NodePresentation, Rect, WindowInfo,
     adapter::{ActionOps, InputOps, NativeHandle, ObservationOps, SystemOps, WindowFilter},
     app_profile_cache::AppProfileKey,
@@ -205,7 +205,10 @@ impl ObservationOps for ProfileCacheAdapter {
             .bounds
             .is_some_and(|bounds| bounds.x != state.bounds_x)
         {
-            return Err(AdapterError::stale_ref("@profile"));
+            return Err(AdapterError::new(
+                ErrorCode::StaleRef,
+                "fixture target is stale",
+            ));
         }
         let id_matches = entry
             .identity
@@ -215,7 +218,10 @@ impl ObservationOps for ProfileCacheAdapter {
         let text_matches = entry.identity.role == "button"
             && entry.identity.name.as_deref() == Some(state.name.as_str());
         if !id_matches && !text_matches {
-            return Err(AdapterError::stale_ref("@profile"));
+            return Err(AdapterError::new(
+                ErrorCode::StaleRef,
+                "fixture target is stale",
+            ));
         }
         if state.duplicates > 1 {
             return Err(AdapterError::ambiguous_target(

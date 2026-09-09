@@ -38,7 +38,7 @@ struct FreshCandidate {
 
 enum CandidateSearch {
     None,
-    One(FreshCandidate),
+    One(Box<FreshCandidate>),
     Ambiguous,
 }
 
@@ -221,11 +221,7 @@ impl WarmContext<'_> {
                 display_path: candidate.data.path,
             })
             .collect::<Vec<_>>();
-        Ok(match candidates.len() {
-            0 => CandidateSearch::None,
-            1 => CandidateSearch::One(candidates.pop().expect("one candidate")),
-            _ => CandidateSearch::Ambiguous,
-        })
+        Ok(classify_candidates(candidates))
     }
 
     fn fuzzy_candidate(&self, stats: &mut LookupStats) -> Result<CandidateSearch, AppError> {
@@ -252,11 +248,7 @@ impl WarmContext<'_> {
                 display_path: candidate.data.path,
             })
             .collect::<Vec<_>>();
-        Ok(match candidates.len() {
-            0 => CandidateSearch::None,
-            1 => CandidateSearch::One(candidates.pop().expect("one candidate")),
-            _ => CandidateSearch::Ambiguous,
-        })
+        Ok(classify_candidates(candidates))
     }
 
     fn scoped_scan(&self, query: &LocatorQuery) -> Result<LocatorResolution, AppError> {
@@ -277,10 +269,11 @@ impl WarmContext<'_> {
 
     fn finish_candidate(
         &self,
-        candidate: FreshCandidate,
+        candidate: Box<FreshCandidate>,
         allow_identifier_refresh: bool,
         mut stats: LookupStats,
     ) -> Result<WarmAttempt, AppError> {
+        let candidate = *candidate;
         let handle = match self
             .adapter
             .resolve_locator_anchor(&candidate.entry, self.request.deadline)
@@ -374,5 +367,19 @@ impl WarmContext<'_> {
             refreshed,
             stats,
         })))
+    }
+}
+
+fn classify_candidates(mut candidates: Vec<FreshCandidate>) -> CandidateSearch {
+    match candidates.len() {
+        0 => CandidateSearch::None,
+        1 => {
+            if let Some(candidate) = candidates.pop() {
+                CandidateSearch::One(Box::new(candidate))
+            } else {
+                CandidateSearch::None
+            }
+        }
+        _ => CandidateSearch::Ambiguous,
     }
 }
