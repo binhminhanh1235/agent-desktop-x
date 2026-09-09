@@ -64,7 +64,7 @@ pub(super) fn execute(
                 args.surface,
                 deadline,
             )?;
-            resolve_query(adapter, query, ObservationRoot::Window(&window), &request)?
+            super::profile_cache::resolve(args, query, adapter, context, &window, &request)?
         }
     };
     require_complete(&resolution)?;

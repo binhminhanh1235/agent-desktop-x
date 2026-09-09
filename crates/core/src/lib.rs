@@ -13,6 +13,7 @@ mod adapter_session;
 mod app_error;
 mod app_info;
 mod app_lookup;
+mod app_profile_cache;
 pub mod capability;
 pub mod cdp_endpoint;
 mod clipboard_content;
