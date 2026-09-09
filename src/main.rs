@@ -6,6 +6,7 @@ mod cli_args;
 mod command_policy;
 mod diagnostic;
 mod dispatch;
+mod mcp;
 
 /// Shared blanket-default `PlatformAdapter` test double, sourced once from
 /// `tests/support/noop_ops.rs` (also consumed by the standalone
@@ -40,6 +41,9 @@ fn main() -> ExitCode {
     #[cfg(target_os = "macos")]
     if let Some(exit_code) = run_permission_prompt_helper() {
         return exit_code;
+    }
+    if mcp::requested() {
+        return mcp::run();
     }
     run()
 }
@@ -217,27 +221,25 @@ fn run_with_adapter(cmd: Commands, cmd_name: &str, context: &CommandContext) -> 
     }
 
     let adapter = build_adapter();
-    let adapter: &dyn agent_desktop_core::PlatformAdapter = &adapter;
+    finish(cmd_name, execute_with_adapter(cmd, &adapter, context))
+}
+
+pub(crate) fn execute_with_adapter(
+    cmd: Commands,
+    adapter: &dyn agent_desktop_core::PlatformAdapter,
+    context: &CommandContext,
+) -> Result<serde_json::Value, AppError> {
     let report = if command_policy::requires_permission_report(&cmd) {
-        match agent_desktop_core::Deadline::standard()
+        agent_desktop_core::Deadline::standard()
             .map_err(AppError::from)
             .and_then(|deadline| adapter.permission_report(deadline).map_err(AppError::from))
-        {
-            Ok(report) => report,
-            Err(err) => return finish(cmd_name, Err(pre_dispatch_error(err))),
-        }
+            .map_err(pre_dispatch_error)?
     } else {
         agent_desktop_core::PermissionReport::default()
     };
-    if let Err(err) = command_policy::preflight(&cmd, &report) {
-        return finish(cmd_name, Err(err));
-    }
-    if let Err(err) = command_policy::preflight_context(&cmd, context) {
-        return finish(cmd_name, Err(err));
-    }
-
-    let result = dispatch::dispatch(cmd, adapter, &report, context);
-    finish(cmd_name, result)
+    command_policy::preflight(&cmd, &report)?;
+    command_policy::preflight_context(&cmd, context)?;
+    dispatch::dispatch(cmd, adapter, &report, context)
 }
 
 fn pre_dispatch_error(error: AppError) -> AppError {
