@@ -43,9 +43,9 @@ pub(super) fn read_resource(uri: &str) -> Result<Value, AppError> {
         }));
     }
 
-    let tail = uri.strip_prefix(&format!("{INDEX_URI}/")).ok_or_else(|| {
-        AppError::invalid_input(format!("Unknown MCP skill resource '{uri}'"))
-    })?;
+    let tail = uri
+        .strip_prefix(&format!("{INDEX_URI}/"))
+        .ok_or_else(|| AppError::invalid_input(format!("Unknown MCP skill resource '{uri}'")))?;
     let mut parts = tail.splitn(2, '/');
     let name = parts.next().unwrap_or_default();
     let selector = parts.next();
@@ -63,7 +63,9 @@ pub(super) fn read_resource(uri: &str) -> Result<Value, AppError> {
     let content = value
         .get("content")
         .and_then(Value::as_str)
-        .ok_or_else(|| AppError::Internal("Bundled skill did not return markdown content".to_string()))?;
+        .ok_or_else(|| {
+            AppError::Internal("Bundled skill did not return markdown content".to_string())
+        })?;
 
     Ok(json!({
         "contents": [{
@@ -97,7 +99,10 @@ pub(super) fn list_prompts() -> Value {
 }
 
 pub(super) fn get_prompt(params: &Value) -> Result<Value, AppError> {
-    let name = params.get("name").and_then(Value::as_str).unwrap_or_default();
+    let name = params
+        .get("name")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if name != "agent-desktop-skill" {
         return Err(AppError::invalid_input(format!(
             "Unknown MCP prompt '{name}'"
@@ -121,7 +126,7 @@ pub(super) fn get_prompt(params: &Value) -> Result<Value, AppError> {
     let content = value
         .get("content")
         .and_then(Value::as_str)
-        .ok_or_else(|| AppError::internal("Bundled skill did not return markdown content"))?;
+        .ok_or_else(|| AppError::Internal("Bundled skill did not return markdown content".to_string()))?;
 
     Ok(json!({
         "description": format!("Bundled skill '{skill_name}'"),
