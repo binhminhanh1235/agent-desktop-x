@@ -38,7 +38,9 @@ pub fn pixels_matching(red: u8, green: u8, blue: u8) -> Option<usize> {
     let pixels = capture(width, height)?;
     Some(
         pixels
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .filter(|pixel| pixel[0] == blue && pixel[1] == green && pixel[2] == red)
             .count(),
     )

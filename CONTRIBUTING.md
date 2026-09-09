@@ -20,7 +20,7 @@ This project follows the guidelines in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 | Requirement | Notes |
 |---|---|
-| **Rust toolchain** | Pinned to `stable` via `rust-toolchain.toml` (`rust-version` 1.85). `rustup` picks the correct channel automatically. |
+| **Rust toolchain** | Pinned to Rust 1.98.1 via `rust-toolchain.toml` (`rust-version` 1.98.1). `rustup` picks the correct channel automatically. |
 | **macOS 13.0+** | Required to build and run the macOS adapter (`crates/macos/`). The stub adapters for Windows and Linux compile on any platform. |
 | **Accessibility permission** | Required for integration and E2E tests against real apps. Grant it in **System Settings > Privacy & Security > Accessibility** by adding the terminal you run tests from. |
 | **Screen Recording permission** | Required only for `screenshot` tests. Same path in System Settings. |

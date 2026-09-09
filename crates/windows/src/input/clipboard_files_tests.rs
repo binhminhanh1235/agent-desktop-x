@@ -42,13 +42,14 @@ fn hdrop_round_trips_empty_single_and_multiple() {
             list.ends_with(&[0, 0, 0, 0]),
             "{label} must end with a wide double-NUL"
         );
-        assert_eq!(
-            list.len() % 2,
-            0,
+        assert!(
+            list.len().is_multiple_of(2),
             "{label} wide list must be UTF-16 aligned"
         );
         let units: Vec<u16> = list
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
             .collect();
         let first_double_nul = units
