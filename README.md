@@ -131,6 +131,18 @@ Permission fields are explicit objects, for example:
 
 Automation reports `granted`, `denied`, or `unknown`; `unknown` means macOS would need to prompt or System Events could not be probed without prompting.
 
+## Native MCP server (Rust, single executable)
+
+Run agent-desktop as an MCP stdio server without Python, a helper daemon, or a second binary:
+
+```bash
+agent-desktop --mcp
+```
+
+The MCP surface reuses the same command parser, permission policy, and dispatcher as the CLI. Bundled Skills are available as `desktop_skills`, MCP resources such as `agent-desktop://skills/agent-desktop`, and the `agent-desktop-skill` prompt. MCP is headless by default; add `--headed` only when physical input is intentionally required.
+
+See **[docs/mcp.md](docs/mcp.md)** for host configuration, protocol compatibility, tool naming, Skills resources, and wire smoke tests.
+
 ## Language bindings (FFI)
 
 Every GitHub Release ships a prebuilt C-ABI cdylib (`libagent_desktop_ffi`) for macOS, Linux, and Windows alongside the CLI tarballs. `dlopen` it and call the functions declared in `agent_desktop.h` for in-process calls instead of fork-exec per command.
