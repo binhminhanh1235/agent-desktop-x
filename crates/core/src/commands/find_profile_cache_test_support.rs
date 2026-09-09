@@ -1,7 +1,8 @@
 use super::{FindArgs, FindFilterArgs, FindSelectionArgs, locator_query_from_args};
 use crate::{
-    AccessibilityNode, AdapterError, ElementIdentifier, ErrorCode, IdentifierEvidence, IdentifierKind,
-    LiveElement, LiveIdentity, LocatorField, NodeIdentity, NodePresentation, Rect, WindowInfo,
+    AccessibilityNode, AdapterError, ElementIdentifier, ErrorCode, IdentifierEvidence,
+    IdentifierKind, LiveElement, LiveIdentity, LocatorField, NodeIdentity, NodePresentation, Rect,
+    WindowInfo,
     adapter::{ActionOps, InputOps, NativeHandle, ObservationOps, SystemOps, WindowFilter},
     app_profile_cache::AppProfileKey,
     live_locator::{ObservationRequest, ObservationRoot},
