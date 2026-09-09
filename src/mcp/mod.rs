@@ -3,9 +3,7 @@ mod protocol;
 mod skills;
 
 use agent_desktop_core::{
-    AppError, PlatformAdapter,
-    commands::batch::BatchCommand,
-    context::CommandContext,
+    AppError, PlatformAdapter, commands::batch::BatchCommand, context::CommandContext,
 };
 use serde_json::Value;
 use std::ffi::OsStr;
@@ -83,9 +81,8 @@ pub(super) fn invoke_tool(
     adapter: &dyn PlatformAdapter,
     headed: bool,
 ) -> Result<Value, AppError> {
-    let command = catalog::command_for_tool(tool_name).ok_or_else(|| {
-        AppError::invalid_input(format!("Unknown MCP tool '{tool_name}'"))
-    })?;
+    let command = catalog::command_for_tool(tool_name)
+        .ok_or_else(|| AppError::invalid_input(format!("Unknown MCP tool '{tool_name}'")))?;
     let command = crate::batch::parse_command(BatchCommand {
         command,
         session: None,
