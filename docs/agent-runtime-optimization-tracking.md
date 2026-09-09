@@ -18,7 +18,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 
 | ID | Priority | Task | Depends on | Status | Evidence |
 |---|---|---|---|---|---|
-| ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | READY | |
+| ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | CODE COMPLETE | PR #11; implementation checkpoint `bebec4046a380477415d0f347a508f134fc8807a`; final gates pending |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | PLANNED | |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | PLANNED | |
 | ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | PLANNED | |
@@ -32,7 +32,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 
 ## ARO-P0A - Semantic AppProfile Cache
 
-Status: READY
+Status: CODE COMPLETE - VERIFYING
 
 Implementation prompt: `docs/prompts/agent-runtime-optimization-p0a.md`
 
@@ -42,27 +42,27 @@ Reduce repeated accessibility/provider work by caching semantic selector knowled
 
 ### Required implementation
 
-- [ ] inventory the existing element/ref/cache identity model across core and native adapters.
-- [ ] define `AppProfile`, semantic selector recipe, live-ref generation, and cache diagnostics.
-- [ ] use stable semantic signals rather than bounds/runtime ids as durable identity.
-- [ ] implement one vertical slice through an existing read/resolve path before generalizing.
-- [ ] add scoped revalidation.
-- [ ] invalidate live refs on process/window generation change.
-- [ ] fail closed on ambiguous candidates.
-- [ ] preserve current delivery semantics and stale-ref behavior.
-- [ ] expose benchmark counters for cold and warm resolution.
-- [ ] add Linux/macOS/Windows-compatible contracts where applicable.
-- [ ] document storage/lifetime boundaries.
+- [x] inventory the existing element/ref/cache identity model across core and native adapters.
+- [x] define `AppProfile`, semantic selector recipe, live-ref generation, and cache diagnostics.
+- [x] use stable semantic signals rather than bounds/runtime ids as durable identity.
+- [x] implement one vertical slice through an existing read/resolve path before generalizing.
+- [x] add scoped revalidation.
+- [x] invalidate live refs on process/window generation change.
+- [x] fail closed on ambiguous candidates.
+- [x] preserve current delivery semantics and stale-ref behavior.
+- [x] expose benchmark counters for cold and warm resolution.
+- [x] add Linux/macOS/Windows-compatible contracts where applicable.
+- [x] document storage/lifetime boundaries.
 
 ### Acceptance
 
-- [ ] first lookup can learn a semantic selector.
-- [ ] repeated stable lookup performs fewer provider/tree reads.
-- [ ] process restart makes the live ref stale but semantic re-resolution can recover.
-- [ ] moved element can resolve without depending on old bounds.
-- [ ] duplicate candidates refuse.
-- [ ] corrupted/mismatched cache fails closed.
-- [ ] existing CLI/MCP/Skills behavior is unchanged.
+- [x] first lookup can learn a semantic selector.
+- [x] repeated stable lookup performs fewer provider/tree reads.
+- [x] process restart makes the live ref stale but semantic re-resolution can recover.
+- [x] moved element can resolve without depending on old bounds.
+- [x] duplicate candidates refuse.
+- [x] corrupted/mismatched cache fails closed.
+- [x] existing CLI/MCP/Skills behavior is unchanged.
 - [ ] exact-head CI PASS.
 - [ ] exact-head CodeQL PASS.
 - [ ] exact-head Supply Chain PASS.
@@ -71,6 +71,18 @@ Reduce repeated accessibility/provider work by caching semantic selector knowled
 - [ ] post-merge CodeQL PASS.
 - [ ] post-merge Supply Chain PASS.
 - [ ] post-merge Release PASS.
+
+### Verification checkpoint
+
+- PR: #11
+- code implementation checkpoint before documentation sync: `bebec4046a380477415d0f347a508f134fc8807a`
+- previous run evidence used for root-cause fixing:
+  - Supply Chain #45: PASS
+  - Linux tests #45: PASS, confirming the prior session-GC failure was transient and unrelated to P0A
+  - stale-ref constructor policy #45: PASS
+  - remaining #45 P0A failure: two `unused_mut` Clippy findings, fixed at the implementation checkpoint above
+- final exact-head CI / CodeQL / Supply Chain remain intentionally unchecked until the documentation-synced head passes.
+- no merge has occurred; P0B/P0C remain untouched.
 
 ## Evidence template
 

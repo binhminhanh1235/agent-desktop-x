@@ -1,6 +1,6 @@
 # Agent Runtime Optimization Plan
 
-Status: PLANNED
+Status: IN PROGRESS - ARO-P0A CODE COMPLETE / VERIFYING
 Branch: `feat/agent-runtime-optimization`
 Verified baseline main: `72772258cca0471fed3eb8603eba0185eced55c2`
 Verified baseline tree: `5c5f9aa475064e56783cb9c7d46aea1b7060ee2b`
@@ -83,6 +83,20 @@ Acceptance:
 - duplicate semantic candidates refuse rather than guess.
 - cache corruption/mismatch fails closed.
 - Linux/macOS/Windows contracts remain compatible.
+
+Implementation checkpoint for the production-real P0A vertical slice:
+
+- integration seam: core read-only live `find`; mutating ref actions keep the existing strict resolution and delivery-semantics path unchanged.
+- cache lifetime: bounded process-local typed memory only, capped at 256 profiles; no SQLite or durable selector persistence in P0A.
+- live cache: generation-bound `RefEntry` metadata only. `NativeHandle` and raw runtime handles are never stored as durable identity.
+- durable identifier admission: AutomationId, AXIdentifier, and AXDOMIdentifier may participate; RuntimeId is explicitly excluded.
+- semantic recipe: canonical role, normalized stable text, semantic ancestor labels, app/window metadata, supported actions, and stable identifiers when available. Bounds and child-index path remain transient live-ref evidence.
+- window recreation: app + surface are the hard semantic scope; current pid/process-instance/window id form the live generation. Window title is retained as profile metadata but does not block equivalent-window re-resolution after recreation.
+- warm priority: valid generation-bound live ref -> stable identifier -> semantic path -> role/type + normalized text -> bounded one-edit fuzzy candidate -> scoped cold window discovery.
+- fuzzy/scoped recovery: candidate enumeration is capped at 16 and ambiguity fails closed.
+- cache admission is intentionally narrow for this slice: exact identity queries with name, description, native id, or value; broad role-only/state/containment/text queries keep the existing cold path so outward `find` semantics do not narrow silently.
+- machine-readable trace event `app_profile.resolve` reports `live_hit`, `semantic_hit`, `revalidated`, `cache_miss`, `ambiguous`, or `invalidated`, plus resolution/provider/tree and cold/warm counters.
+- focused tests cover first-learn/warm reuse, reduced tree work, moved bounds, process+window recreation, duplicate refusal, corrupted cache, and identity mismatch.
 
 ## P0B - Compound Execution Engine
 
