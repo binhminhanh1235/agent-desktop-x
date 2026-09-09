@@ -148,7 +148,13 @@ fn failed_scroll_recovery_surfaces_the_original_actionability_error() {
     let adapter = ScrollRecoveryAdapter::new(true, true);
 
     let error =
-        execute_entry(&adapter, &entry(), ActionRequest::headless(Action::Expand)).unwrap_err();
+        execute_entry_with_context(
+            &adapter,
+            &entry(),
+            ActionRequest::headless(Action::Expand),
+            &CommandContext::default(),
+        )
+        .unwrap_err();
 
     assert_eq!(error.code, ErrorCode::ActionFailed);
     assert!(
@@ -184,8 +190,13 @@ fn failed_scroll_recovery_surfaces_the_original_actionability_error() {
 fn scroll_recovery_success_lets_the_action_proceed() {
     let adapter = ScrollRecoveryAdapter::new(false, false);
 
-    let result = execute_entry(&adapter, &entry(), ActionRequest::headless(Action::Expand))
-        .expect("action should dispatch once the recovered target is actionable");
+    let result = execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headless(Action::Expand),
+        &CommandContext::default(),
+    )
+    .expect("action should dispatch once the recovered target is actionable");
 
     assert_eq!(result.action, "expand");
     assert_eq!(adapter.scroll_calls.load(Ordering::SeqCst), 1);
@@ -198,7 +209,13 @@ fn scroll_recovery_that_leaves_the_target_unactionable_still_fails() {
     let adapter = ScrollRecoveryAdapter::new(true, false);
 
     let error =
-        execute_entry(&adapter, &entry(), ActionRequest::headless(Action::Expand)).unwrap_err();
+        execute_entry_with_context(
+            &adapter,
+            &entry(),
+            ActionRequest::headless(Action::Expand),
+            &CommandContext::default(),
+        )
+        .unwrap_err();
 
     assert_eq!(error.code, ErrorCode::ActionFailed);
     assert!(
