@@ -76,7 +76,7 @@ mod imp {
         let mut status = NodeAttributeStatus::default();
         let mut deadline_exhausted = false;
         for (index, item) in
-            crate::tree::node_attribute_names::requested_indices(mask).zip(attributes.into_iter())
+            crate::tree::node_attribute_names::requested_indices(mask).zip(attributes)
         {
             if node_attribute_decode::is_null(&item) {
                 continue;
