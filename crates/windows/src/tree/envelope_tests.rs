@@ -3,8 +3,8 @@ use agent_desktop_core::{
     ElementState, ErrorCode, IdentifierEvidence, InputOps, InteractionLease, LiveElement,
     LiveIdentity, LocatorField, NativeHandle, ObservationOps, Point, ProcessId, Rect,
     RefCapabilities, RefEntry, RefEntryIdentity, RefGeometry, RefProcess, RefScope, RefSource,
-    RetryDisposition, SnapshotSurface, SystemOps, WindowInfo, capability, hit_test::HitTestResult,
-    ref_action, state::VisibilityEvidence,
+    RetryDisposition, SnapshotSurface, SystemOps, WindowInfo, capability, context::CommandContext,
+    hit_test::HitTestResult, ref_action, state::VisibilityEvidence,
 };
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -237,7 +237,8 @@ fn assert_not_delivered(error: &AdapterError) {
 
 fn click(adapter: &EnvelopeAdapter, request: ActionRequest) -> AdapterError {
     let entry = entry_for(&adapter.live);
-    ref_action::execute_entry(adapter, &entry, request).expect_err("expected actionability failure")
+    ref_action::execute_entry_with_context(adapter, &entry, request, &CommandContext::default())
+        .expect_err("expected actionability failure")
 }
 
 #[test]
