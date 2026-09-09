@@ -55,9 +55,7 @@ pub(super) fn handle(request: Value, adapter: &dyn PlatformAdapter, headed: bool
         }
     };
 
-    let Some(id) = id else {
-        return None;
-    };
+    let id = id?;
     Some(match result {
         Ok(result) => success_response(id, result, modern),
         Err(error) => error_response(id, error.code, &error.message, error.data),
