@@ -212,7 +212,7 @@ impl WarmContext<'_> {
         if !resolution.meta.complete || resolution.meta.truncated {
             return Ok(CandidateSearch::None);
         }
-        let mut candidates = resolution
+        let candidates = resolution
             .matches
             .into_iter()
             .filter(|candidate| self.profile.selector().path_matches(&candidate.data.path))
@@ -232,7 +232,7 @@ impl WarmContext<'_> {
         if !resolution.meta.complete || resolution.meta.truncated {
             return Ok(CandidateSearch::None);
         }
-        let mut candidates = resolution
+        let candidates = resolution
             .matches
             .into_iter()
             .filter(|candidate| {
