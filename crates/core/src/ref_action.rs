@@ -345,9 +345,9 @@ fn ref_label_from_entry(entry: &RefEntry) -> String {
 }
 
 /// Executes a pre-resolved ref-action entry using the provided `context` for
-/// session identity and trace emission. Prefer this over `execute_entry` when
-/// a real `CommandContext` is available (e.g. from `AdAdapter::command_context`
-/// in the FFI layer), so that trace events carry the correct session id.
+/// session identity and trace emission. Callers with a live `CommandContext`
+/// (e.g. from `AdAdapter::command_context` in the FFI layer) pass it through so
+/// that trace events carry the correct session id.
 ///
 /// Trace records use a role/path-derived label for the `"ref"` field so that
 /// FFI call-site events are distinguishable in multi-element trace logs. The
@@ -370,17 +370,6 @@ pub fn execute_entry_with_context(
         request,
         dispatch_resolved,
     )
-}
-
-/// Executes a pre-resolved ref-action entry with a default (no-session,
-/// no-trace) `CommandContext`. Existing callers outside the FFI layer that do
-/// not have a live session context continue to use this entry point unchanged.
-pub fn execute_entry(
-    adapter: &dyn PlatformAdapter,
-    entry: &RefEntry,
-    request: ActionRequest,
-) -> Result<ActionResult, AdapterError> {
-    execute_entry_with_context(adapter, entry, request, &CommandContext::default())
 }
 
 pub(crate) fn into_adapter_error(err: AppError) -> AdapterError {

@@ -189,8 +189,13 @@ fn short_action_budget_skips_optional_travel_before_dispatch() {
 fn disabled_overlay_does_not_present() {
     let adapter = CursorAdapter::new(false);
 
-    execute_entry(&adapter, &entry(), ActionRequest::headless(Action::Click))
-        .expect("click succeeds");
+    execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headless(Action::Click),
+        &CommandContext::default(),
+    )
+    .expect("click succeeds");
     assert!(adapter.presented.lock().unwrap().is_empty());
 }
 
