@@ -230,7 +230,13 @@ fn entry() -> RefEntry {
 #[test]
 fn successful_action_drops_resolved_payload() {
     let adapter = SuccessfulAdapter::new();
-    let result = execute_entry(&adapter, &entry(), ActionRequest::headless(Action::Click)).unwrap();
+    let result = execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headless(Action::Click),
+        &CommandContext::default(),
+    )
+    .unwrap();
 
     assert_eq!(result.action, "click");
     assert_eq!(adapter.drops.load(Ordering::SeqCst), 1);
@@ -240,7 +246,13 @@ fn successful_action_drops_resolved_payload() {
 fn headed_preflight_preserves_requested_physical_delivery() {
     let adapter = SuccessfulAdapter::new();
 
-    execute_entry(&adapter, &entry(), ActionRequest::headed(Action::Click)).unwrap();
+    execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headed(Action::Click),
+        &CommandContext::default(),
+    )
+    .unwrap();
 
     assert_eq!(
         adapter.dispatched_policies.lock().unwrap().as_slice(),
@@ -254,8 +266,13 @@ fn failed_action_still_drops_resolved_payload() {
         drops: Arc::new(AtomicU32::new(0)),
     };
 
-    let err =
-        execute_entry(&adapter, &entry(), ActionRequest::headless(Action::Click)).unwrap_err();
+    let err = execute_entry_with_context(
+        &adapter,
+        &entry(),
+        ActionRequest::headless(Action::Click),
+        &CommandContext::default(),
+    )
+    .unwrap_err();
 
     assert_eq!(err.code, crate::ErrorCode::Internal);
     assert_eq!(adapter.drops.load(Ordering::SeqCst), 1);
@@ -263,10 +280,11 @@ fn failed_action_still_drops_resolved_payload() {
 
 #[test]
 fn replacement_between_resolution_and_dispatch_fails_before_delivery() {
-    let error = execute_entry(
+    let error = execute_entry_with_context(
         &ProcessReplacingAdapter,
         &entry(),
         ActionRequest::headless(Action::Click),
+        &CommandContext::default(),
     )
     .unwrap_err();
 
@@ -278,7 +296,7 @@ fn replacement_between_resolution_and_dispatch_fails_before_delivery() {
 }
 
 #[test]
-fn execute_entry_with_context_succeeds_and_matches_execute_entry() {
+fn execute_entry_with_context_succeeds() {
     let context = CommandContext::default();
     let adapter = SuccessfulAdapter::new();
     let result = execute_entry_with_context(
