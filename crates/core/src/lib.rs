@@ -12,6 +12,7 @@ mod adapter_error;
 mod adapter_session;
 mod app_error;
 mod app_info;
+mod app_profile_cache;
 mod app_lookup;
 pub mod capability;
 pub mod cdp_endpoint;

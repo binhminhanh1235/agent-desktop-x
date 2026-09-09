@@ -250,6 +250,8 @@ fn count_matches(node: &AccessibilityNode, query: &LocatorQuery) -> usize {
 
 #[path = "find_live.rs"]
 mod live;
+#[path = "find_profile_cache.rs"]
+mod profile_cache;
 
 #[cfg(test)]
 #[path = "find_tests.rs"]
@@ -262,3 +264,7 @@ mod test_support;
 #[cfg(test)]
 #[path = "find_live_tests.rs"]
 mod live_tests;
+
+#[cfg(test)]
+#[path = "find_profile_cache_tests.rs"]
+mod profile_cache_tests;
