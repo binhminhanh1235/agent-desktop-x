@@ -54,7 +54,14 @@ pub(crate) fn wait_for_menu(
             }
             Ok(_) => {}
             Err(error) if error.code == ErrorCode::Timeout => {}
-            Err(error) => return Err(error),
+            Err(error) => {
+                // The target may have exited after the pre-poll identity check but
+                // before or during the provider read. Re-check before surfacing a
+                // provider error so a dead/recycled process is reported as StaleRef,
+                // while a still-live unresponsive target keeps its original error.
+                verify_process_alive(&process)?;
+                return Err(error);
+            }
         }
         if deadline.is_expired() {
             return Err(deadline
