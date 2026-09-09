@@ -115,7 +115,10 @@ mod tests {
     fn catalog_is_deterministic_and_contains_skills() {
         let first = tools();
         let second = tools();
-        let names = first.iter().map(|tool| tool.name.as_str()).collect::<Vec<_>>();
+        let names = first
+            .iter()
+            .map(|tool| tool.name.as_str())
+            .collect::<Vec<_>>();
         assert_eq!(
             names,
             second
