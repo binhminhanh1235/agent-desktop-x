@@ -40,6 +40,12 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 /// this method reports the exited-or-recycled target as `StaleRef`, the code
 /// this crate already uses for a resolved reference that no longer matches
 /// live state, rather than the transient-condition code macOS reuses there.
+///
+/// A second identity check also runs before any non-timeout predicate error is
+/// surfaced. That closes the race where the process exits after the pre-poll
+/// check but before or during the provider read: a dead or recycled process is
+/// reported as `StaleRef`, while a still-live unresponsive target keeps the
+/// original provider error.
 pub(crate) fn wait_for_menu(
     process: ProcessIdentity,
     open: bool,
@@ -54,7 +60,10 @@ pub(crate) fn wait_for_menu(
             }
             Ok(_) => {}
             Err(error) if error.code == ErrorCode::Timeout => {}
-            Err(error) => return Err(error),
+            Err(error) => {
+                verify_process_alive(&process)?;
+                return Err(error);
+            }
         }
         if deadline.is_expired() {
             return Err(deadline
