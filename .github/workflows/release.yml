@@ -48,7 +48,7 @@ jobs:
       contents: write
       pull-requests: write
     outputs:
-      release_created: ${{ steps.release.outputs.release_created || steps.manual.outputs.release_created }}
+      release_created: ${{ steps.release.outputs.release_created || steps.manual.outputs.release_created || steps.fork.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name || steps.manual.outputs.tag_name }}
       version: ${{ steps.release.outputs.major && format('{0}.{1}.{2}', steps.release.outputs.major, steps.release.outputs.minor, steps.release.outputs.patch) || steps.manual.outputs.version }}
       publish_npm: ${{ steps.manual.outputs.publish_npm || 'true' }}
@@ -56,11 +56,19 @@ jobs:
       allow_republish: ${{ steps.manual.outputs.allow_republish || 'false' }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
-        if: github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch' && github.repository == 'lahfir/agent-desktop'
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Skip automatic release on forks
+        if: github.event_name != 'workflow_dispatch' && github.repository != 'lahfir/agent-desktop'
+        id: fork
+        run: |
+          echo "Automatic release PRs are only created by the canonical upstream repository."
+          echo "Manual workflow_dispatch releases remain available for forks."
+          echo "release_created=false" >> "$GITHUB_OUTPUT"
 
       - name: Use manual release inputs
         if: github.event_name == 'workflow_dispatch'
@@ -90,7 +98,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Sync Cargo.lock on release PR
-        if: github.event_name != 'workflow_dispatch' && steps.release.outputs.release_created != 'true'
+        if: github.event_name != 'workflow_dispatch' && github.repository == 'lahfir/agent-desktop' && steps.release.outputs.release_created != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
