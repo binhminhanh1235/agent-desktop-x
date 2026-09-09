@@ -237,13 +237,8 @@ fn assert_not_delivered(error: &AdapterError) {
 
 fn click(adapter: &EnvelopeAdapter, request: ActionRequest) -> AdapterError {
     let entry = entry_for(&adapter.live);
-    ref_action::execute_entry_with_context(
-        adapter,
-        &entry,
-        request,
-        &CommandContext::default(),
-    )
-    .expect_err("expected actionability failure")
+    ref_action::execute_entry_with_context(adapter, &entry, request, &CommandContext::default())
+        .expect_err("expected actionability failure")
 }
 
 #[test]
