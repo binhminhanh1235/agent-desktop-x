@@ -94,6 +94,10 @@ fn run() -> ExitCode {
         }
     };
 
+    if cli.mcp {
+        return mcp::run();
+    }
+
     init_tracing(cli.verbose);
 
     let cmd = match cli.command.take() {
