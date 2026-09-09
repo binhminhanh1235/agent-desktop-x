@@ -66,7 +66,9 @@ pub(super) fn resolve(
             )?;
             Ok(resolution)
         }
-        CacheLookup::Hit(profile) => resolve_hit(key, *profile, args, query, adapter, context, window, request),
+        CacheLookup::Hit(profile) => resolve_hit(
+            key, *profile, args, query, adapter, context, window, request,
+        ),
     }
 }
 

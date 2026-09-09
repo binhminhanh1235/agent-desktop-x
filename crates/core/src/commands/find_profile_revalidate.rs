@@ -320,7 +320,10 @@ impl WarmContext<'_> {
         location: LiveLocation,
         mut stats: LookupStats,
     ) -> Result<WarmAttempt, AppError> {
-        let live = match self.adapter.get_live_element(&handle, self.request.deadline) {
+        let live = match self
+            .adapter
+            .get_live_element(&handle, self.request.deadline)
+        {
             Ok(live) => live,
             Err(error) if stale_or_unsupported(&error) => {
                 return Ok(WarmAttempt::Miss {
@@ -343,9 +346,12 @@ impl WarmContext<'_> {
                 stats,
             });
         }
-        let Some(entry) =
-            app_profile_cache::entry_from_live(self.window, self.args.surface, &live, location.path)
-        else {
+        let Some(entry) = app_profile_cache::entry_from_live(
+            self.window,
+            self.args.surface,
+            &live,
+            location.path,
+        ) else {
             return Ok(WarmAttempt::Miss {
                 status: "invalidated",
                 reason: "live_generation_unusable",

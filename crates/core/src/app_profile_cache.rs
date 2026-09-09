@@ -108,10 +108,7 @@ pub(crate) fn lookup(key: &AppProfileKey) -> Result<CacheLookup, crate::AppError
     Ok(CacheLookup::Hit(Box::new(profile)))
 }
 
-pub(crate) fn store(
-    key: AppProfileKey,
-    profile: AppProfile,
-) -> Result<bool, crate::AppError> {
+pub(crate) fn store(key: AppProfileKey, profile: AppProfile) -> Result<bool, crate::AppError> {
     if !profile.validate() {
         return Ok(false);
     }

@@ -22,8 +22,7 @@ pub(super) fn resolution_from_live(
         .or_else(|| live.state.value.clone())
         .or_else(|| live.identity.description.known().cloned())
         .unwrap_or_else(|| format!("(unnamed {role})"));
-    let interactive =
-        crate::ref_alloc::is_ref_able_role_actions(&role, &live.available_actions);
+    let interactive = crate::ref_alloc::is_ref_able_role_actions(&role, &live.available_actions);
     Ok(LocatorResolution {
         matches: vec![LocatorMatch {
             data: LocatorMatchData {

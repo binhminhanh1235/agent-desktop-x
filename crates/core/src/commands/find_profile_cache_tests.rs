@@ -10,7 +10,9 @@ use crate::{
 
 #[test]
 fn first_lookup_learns_semantics_and_second_lookup_avoids_tree_walk() {
-    let _serial = TEST_LOCK.lock().expect("test lock");
+    let _serial = TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let _guard = HomeGuard::new();
     app_profile_cache::clear_for_tests();
     let adapter = ProfileCacheAdapter::new();
@@ -42,7 +44,9 @@ fn first_lookup_learns_semantics_and_second_lookup_avoids_tree_walk() {
 
 #[test]
 fn bounds_motion_does_not_break_semantic_identity() {
-    let _serial = TEST_LOCK.lock().expect("test lock");
+    let _serial = TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let _guard = HomeGuard::new();
     app_profile_cache::clear_for_tests();
     let adapter = ProfileCacheAdapter::new();
@@ -58,7 +62,9 @@ fn bounds_motion_does_not_break_semantic_identity() {
 
 #[test]
 fn process_and_window_recreation_invalidates_live_generation_but_semantics_reresolve() {
-    let _serial = TEST_LOCK.lock().expect("test lock");
+    let _serial = TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let _guard = HomeGuard::new();
     app_profile_cache::clear_for_tests();
     let adapter = ProfileCacheAdapter::new();
@@ -74,8 +80,7 @@ fn process_and_window_recreation_invalidates_live_generation_but_semantics_reres
         state.process_instance = "proc-b".into();
         state.window_id = "w-profile-2".into();
     });
-    let current_window =
-        ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
+    let current_window = ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
     assert!(!before_profile.live_generation_matches(&current_window));
 
     let before = adapter.counts();
@@ -90,7 +95,9 @@ fn process_and_window_recreation_invalidates_live_generation_but_semantics_reres
 
 #[test]
 fn duplicate_semantic_candidates_refuse_cached_single_target() {
-    let _serial = TEST_LOCK.lock().expect("test lock");
+    let _serial = TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let _guard = HomeGuard::new();
     app_profile_cache::clear_for_tests();
     let adapter = ProfileCacheAdapter::new();
@@ -110,7 +117,9 @@ fn duplicate_semantic_candidates_refuse_cached_single_target() {
 
 #[test]
 fn corrupted_cache_is_never_used_as_a_target() {
-    let _serial = TEST_LOCK.lock().expect("test lock");
+    let _serial = TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let _guard = HomeGuard::new();
     app_profile_cache::clear_for_tests();
     let adapter = ProfileCacheAdapter::new();
@@ -132,7 +141,9 @@ fn corrupted_cache_is_never_used_as_a_target() {
 
 #[test]
 fn mismatched_cached_identity_fails_closed() {
-    let _serial = TEST_LOCK.lock().expect("test lock");
+    let _serial = TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poison| poison.into_inner());
     let _guard = HomeGuard::new();
     app_profile_cache::clear_for_tests();
     let adapter = ProfileCacheAdapter::new();

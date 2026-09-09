@@ -230,11 +230,6 @@ impl ObservationOps for ProfileCacheAdapter {
         _entry: &crate::RefEntry,
         _deadline: crate::Deadline,
     ) -> Result<NativeHandle, AdapterError> {
-        if self.state.lock().expect("fixture lock").duplicates > 1 {
-            return Err(AdapterError::ambiguous_target(
-                "fixture contains duplicate semantic anchors",
-            ));
-        }
         Ok(NativeHandle::null())
     }
 
