@@ -36,6 +36,18 @@ bun install -g --trust agent-desktop
 
 macOS requires macOS 12+; grant Accessibility permission to your terminal, plus Screen Recording for screenshots. Windows requires Windows 10 1809+ / Server 2019+ and needs no permission grant for same-integrity UI Automation targets (elevated targets want an elevated terminal — see the `agent-desktop-windows` skill).
 
+## MCP Mode
+
+When the calling host supports MCP, the same native executable can serve the desktop tools over stdio:
+
+```bash
+agent-desktop --mcp
+```
+
+No Python runtime or sidecar is involved. MCP tool names use the `desktop_` prefix (for example `desktop_snapshot`, `desktop_click`, `desktop_skills`) and route through the same parser, permission policy, and dispatcher as CLI calls.
+
+Before a complex workflow, read `agent-desktop://skills/agent-desktop`. On Windows, also read `agent-desktop://skills/agent-desktop-windows`. Use `--mcp --headed` only when a workflow explicitly needs physical input. See `docs/mcp.md` for the complete contract.
+
 ## Reference Files
 
 Detailed documentation is split into focused reference files. Read them as needed:
