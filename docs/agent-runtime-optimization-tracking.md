@@ -21,7 +21,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
-| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | IN PROGRESS | branch `feat/agent-runtime-optimization-p1a`; exact base `89bc5ff2fcd2e5d1db935a50d440e82221accbf2` / tree `9892105cf0f29c26e472dd2a75323841074fcff7`; `list-windows` vertical slice |
+| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | CODE COMPLETE | implementation `5dad0f9cc378acf6954658806ecf5169bd1c05a2` / tree `fdefc52512e603c19d05e1f32f747ab99e1d94b6`; acceptance 15/15; code-head CI #81 / CodeQL #81 / Supply Chain #81 PASS; final docs head must be re-gated before merge |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
@@ -276,7 +276,7 @@ Optimization evidence retained across P0A-P0C:
 
 ## ARO-P1A - View Handles + State Delta
 
-Status: IN PROGRESS
+Status: CODE COMPLETE
 
 Implementation prompt: `docs/prompts/agent-runtime-optimization-p1a.md`
 
@@ -286,11 +286,61 @@ Exact branch base:
 - tree: `9892105cf0f29c26e472dd2a75323841074fcff7`
 - working branch: `feat/agent-runtime-optimization-p1a`
 
-Verified initial boundary:
+Verified boundary and implementation:
 
-- compact observe calls the existing granular dispatch path after parsing a `BatchCommand` and enforcing read-only semantics;
-- `list-windows` reaches `PlatformAdapter::list_windows` and returns serialized `WindowInfo` values;
-- on Windows, `WindowInfo.id` is `w-<HWND>`, so P1A must not persist/use that field as canonical view identity;
-- mutation remains on the P0B/P0C semantic compound engine and no view path may bypass it.
+- compact observe still calls the existing granular dispatch path after parsing a `BatchCommand` and enforcing read-only semantics;
+- P1A view flow is opt-in and currently supports only `list-windows`; legacy observe without `view` keeps the existing response contract;
+- views are process-local, thread-safe, bounded to 64 entries, TTL-bound to 30 seconds, and deterministically oldest-first evicted;
+- canonical view state and deltas are bounded, deterministically ordered, and use semantic comparison keys derived from app, PID, process generation, and title;
+- on Windows, raw `WindowInfo.id` is `w-<HWND>` and is explicitly excluded from persisted canonical view state and comparison identity;
+- missing or ambiguous safe semantic identity fails closed rather than falling back to runtime handles or provider array order;
+- mutation remains on the P0B/P0C semantic compound engine; `desktop.execute` does not accept view evidence as authorization.
+
+### Acceptance mapping
+
+- [x] 1. first observation creates a bounded view id and returns the normal full result plus view metadata.
+- [x] 2. identical second observation performs a fresh provider read and returns an empty `added` / `removed` / `changed` delta.
+- [x] 3. one added semantic entity produces exactly one `added` entry.
+- [x] 4. one removed semantic entity produces exactly one `removed` entry.
+- [x] 5. one non-identity semantic state change produces exactly one `changed` entry.
+- [x] 6. provider/input ordering does not change canonical ordering or create false deltas.
+- [x] 7. unknown view ids refuse deterministically with `VIEW_UNKNOWN`.
+- [x] 8. expired views refuse explicitly with `VIEW_EXPIRED`.
+- [x] 9. incompatible observation scope refuses with `VIEW_SCOPE_MISMATCH`.
+- [x] 10. capacity eviction is deterministic and oldest-first.
+- [x] 11. canonical view state never persists raw/native runtime window ids; missing/ambiguous semantic identity fails closed.
+- [x] 12. stale view evidence cannot authorize mutation; `desktop.execute` rejects unknown `view` input before any mutation call.
+- [x] 13. mutation still traverses P0B/P0C semantic preflight and delivery/no-replay contracts; compact tests prove preflight-before-side-effect and exactly-once mutation with `mutation_replay: false`.
+- [x] 14. existing P0C calls without view fields remain backward compatible; legacy observe returns `result` without `view`/`delta`, and execute/run regression tests remain green.
+- [x] 15. existing granular MCP tools are unchanged; baseline-to-feature diff contains no granular MCP dispatch/tool implementation changes and full CI remains green.
+
+### Optimization evidence
+
+Scenario: 30 semantic windows are observed, then exactly one existing window changes bounds.
+
+- full entries: 30.
+- subsequent delta entries: 1.
+- unchanged entities: omitted from the delta.
+- harness calls for each observation: 1.
+- runtime metadata measures `full_result_bytes` and `delta_payload_bytes`; focused acceptance asserts the one-change delta payload is smaller than the full result.
+- focused acceptance also asserts the serialized subsequent delta response is smaller than the first full-response envelope.
+- no wall-clock latency or percentage speed-up claim is made because P1A has not added a wall-clock benchmark.
+- P0A `tree_reads: 28 -> 0` is retained as separate P0A evidence and is not presented as P1A delta evidence.
+
+### Code-head verification checkpoint
+
+Implementation head before this tracking-only closure commit:
+
+- code head: `5dad0f9cc378acf6954658806ecf5169bd1c05a2`
+- code tree: `fdefc52512e603c19d05e1f32f747ab99e1d94b6`
+- exact-head CI #81 / run `34502284345`: PASS
+- exact-head CodeQL #81 / run `34502284367`: PASS
+- exact-head Supply Chain #81 / run `34502284311`: PASS
+- Windows x64 `Core and Windows unit tests`: PASS.
+- Windows x64 E2E contract, seeded-failure, redaction, citation, refusal-guard, fixture compile, binary-size, profile-isolation, and cleanup steps: PASS.
+
+The preceding CI failure exposed a latent Windows live-test foreground race, not a P1A production-path regression. Both strict-headless foreground-invariant tests now hold the existing shared `on_screen_stage()` guard while measuring before/refusal/after. Assertions, production policy, timeouts, and retry behavior were not weakened.
+
+This tracking update changes the feature HEAD. CI, CodeQL, and Supply Chain must therefore PASS again on the resulting exact docs-inclusive HEAD before PR creation or merge.
 
 P1B/P1C remain PLANNED until P1A is closed.
