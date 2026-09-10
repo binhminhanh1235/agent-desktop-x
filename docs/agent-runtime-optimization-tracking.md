@@ -20,8 +20,8 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 |---|---|---|---|---|---|
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
-| ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | PLANNED | |
-| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | PLANNED | |
+| ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
+| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | READY | P0A/P0C dependencies verified; next vertical slice |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
@@ -190,4 +190,88 @@ Manual acceptance summary: PASS 12/12.
 - cleanup/post-job steps: PASS
 - P0A optimization evidence retained: cold `tree_reads: 28` -> warm `tree_reads: 0`.
 - P0B compound execution reduces multiple harness round trips into one runtime call while preserving delivery/no-replay safety semantics.
-- ARO-P0C remains PLANNED and untouched.
+
+## ARO-P0C - Compact Agent API
+
+Status: DONE / VERIFIED
+
+Real-machine runbook: `docs/agent-runtime-optimization-p0c-real-machine-test.md`
+
+### Required implementation
+
+- [x] expose exactly three compact high-level tools: `desktop.observe`, `desktop.execute`, and `desktop.run`.
+- [x] retain existing granular `desktop_*` MCP tools.
+- [x] keep `desktop.observe` read-only and exclude full snapshot/screenshot from the compact enum.
+- [x] route `desktop.execute` and `desktop.run` through the existing semantic compound engine.
+- [x] preserve full-plan semantic preflight before side effects.
+- [x] preserve permission/deadline/condition/verification/delivery/no-replay contracts.
+- [x] return compact provenance, verification, and state-change summaries.
+- [x] enforce schema/runtime parity for step count, timeouts, and assertion pointer length before dispatch.
+- [x] repair the Windows x64 file-lock deadline regression discovered by post-hardening CI without increasing the lock budget or weakening the test.
+
+### Focused acceptance
+
+- [x] compact schemas are deterministic and bounded.
+- [x] compact tools and granular tools coexist in `tools/list`.
+- [x] observe refuses mutation.
+- [x] execute rejects coordinate-only semantic mutation during preflight before earlier side effects.
+- [x] run preserves verification and no mutation replay.
+- [x] more than 64 steps fail before side effects.
+- [x] zero top-level/per-step timeout fails before side effects.
+- [x] assertion JSON Pointer longer than 256 Unicode characters fails before side effects.
+- [x] Windows x64 file-lock acquisition performs one immediate non-blocking attempt even if setup consumed the caller budget; contention waiting remains deadline-bounded.
+- [x] exact-head and final code-baseline CI/CodeQL/Supply Chain/Release PASS.
+
+### Verification checkpoint
+
+Original compact API, PR #13:
+
+- final feature head: `3723a9c090e3deaed5acf626c8e7dae10cfb0746`
+- final feature tree: `6b6b67bc4838def6d0b490e795257795929254f7`
+- exact-head CI #65 / run `34452517347`: PASS
+- exact-head CodeQL #65 / run `34452517345`: PASS
+- exact-head Supply Chain #65 / run `34452517356`: PASS
+- guarded squash merge: `c29d291b0f5cf7c6712165ac8204cd9725647233`
+- merge tree: `6b6b67bc4838def6d0b490e795257795929254f7`
+- post-merge CI #66 / run `34454566703`: PASS
+- post-merge CodeQL #66 / run `34454566815`: PASS
+- post-merge Supply Chain #66 / run `34454566702`: PASS
+- post-merge Release #16 / run `34454566772`: PASS
+
+Runtime-bound hardening, PR #14:
+
+- final head: `bfea5c4ccc9f8b97284a7d86f4873e656d21c420`
+- final tree: `352b7cd34766a6b33437ca493c57148fec468ca3`
+- exact-head CI #68 / run `34455540410`: PASS
+- exact-head CodeQL #68 / run `34455540510`: PASS
+- exact-head Supply Chain #68 / run `34455540574`: PASS
+- guarded squash merge: `7d934135491e220740d6c1af6d5449e2324b9560`
+- merge tree: `352b7cd34766a6b33437ca493c57148fec468ca3`
+- post-hardening Supply Chain #69 / run `34458017873`: PASS
+- post-hardening CodeQL #69 / run `34458017888`: PASS
+- post-hardening Release #17 / run `34458017912`: PASS
+- post-hardening CI #69 / run `34458017919`: FAIL on Windows x64; the regression was treated as a blocker rather than waived.
+
+Windows file-lock baseline repair, PR #15:
+
+- final head: `225a897bc26bc7335aeb324a6d4f81456447e253`
+- final tree: `8b7dc61fcd3f2aa1a05f807901ecf854ce831ff8`
+- exact-head CI #72 / run `34469010952`: PASS
+- exact-head CodeQL #72 / run `34469010963`: PASS
+- exact-head Supply Chain #72 / run `34469010945`: PASS
+- guarded squash merge: `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`
+- merge tree: `8b7dc61fcd3f2aa1a05f807901ecf854ce831ff8`
+- final code-baseline CI #73 / run `34470409683`: PASS
+- final code-baseline CodeQL #73 / run `34470409728`: PASS
+- final code-baseline Supply Chain #73 / run `34470409795`: PASS
+- final code-baseline Release #18 / run `34470409691`: PASS
+- Windows x64 unit tests and full E2E/safety lane: PASS
+- Windows ARM64 full lane: PASS
+
+Optimization evidence retained across P0A-P0C:
+
+- P0A cold resolution `tree_reads: 28` -> warm resolution `tree_reads: 0`.
+- P0B/P0C can carry condition/action/verification in one top-level runtime/MCP call instead of requiring separate harness calls.
+- no fixed latency speed-up is claimed without a measured wall-clock benchmark.
+
+P1A is the next vertical slice. P1B/P1C remain PLANNED until P1A is closed.

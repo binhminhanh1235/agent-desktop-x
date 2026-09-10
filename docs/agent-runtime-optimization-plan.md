@@ -1,9 +1,9 @@
 # Agent Runtime Optimization Plan
 
-Status: ARO-P0A DONE / VERIFIED; ARO-P0B DONE / VERIFIED
+Status: ARO-P0A DONE / VERIFIED; ARO-P0B DONE / VERIFIED; ARO-P0C DONE / VERIFIED
 Branch: `feat/agent-runtime-optimization`
-Verified baseline main: `72772258cca0471fed3eb8603eba0185eced55c2`
-Verified baseline tree: `5c5f9aa475064e56783cb9c7d46aea1b7060ee2b`
+Verified P0C code baseline main: `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`
+Verified P0C code baseline tree: `8b7dc61fcd3f2aa1a05f807901ecf854ce831ff8`
 
 ## Mission
 
@@ -160,7 +160,7 @@ Initial implementation direction:
 - verification errors inherit the action delivery disposition and remain retry-unsafe after delivered mutation.
 - existing action -> event wait pre-baseline logic remains the wait primitive for the first vertical slice.
 - compact `plan_trace` records only index/command/outcome/phase/timing/disposition, never command payload values.
-- this is P0B foundation only; P0C will later expose the compact `desktop.execute` harness surface.
+- this is P0B foundation; P0C subsequently exposed it through the compact `desktop.execute` and `desktop.run` harness surface.
 
 Final ARO-P0B verification evidence:
 
@@ -180,13 +180,12 @@ Final ARO-P0B verification evidence:
 - post-merge Supply Chain #59 / run `34441106394`: PASS.
 - post-merge Release #14 / run `34441106399`: PASS.
 - P0B compound execution reduces multiple harness round trips into one runtime call while preserving delivery disposition and no-replay mutation safety semantics.
-- ARO-P0C remains PLANNED and was not started.
 
 ## P0C - Compact Agent API
 
 Goal: make deep harness integration require only a tiny stable surface.
 
-Add a high-level API alongside existing commands:
+High-level API alongside existing commands:
 
 - `desktop.observe`
 - `desktop.execute`
@@ -199,6 +198,48 @@ Requirements:
 - schemas are deterministic and compact.
 - results include provenance, confidence where applicable, verification state, and minimal relevant state changes.
 - no giant accessibility-tree dump by default.
+
+Final implementation:
+
+- `desktop.observe` is a targeted read-only façade over the existing granular parser/dispatcher and intentionally excludes full `snapshot` and `screenshot` from its compact command enum.
+- `desktop.execute` and `desktop.run` force `semantic: true` and reuse the P0B compound engine, including full-plan preflight before mutation, permission policy, deadlines, conditions, verification, delivery disposition, and mutation no-replay semantics.
+- `desktop.run` adds only a bounded caller-supplied workflow identifier. Durable jobs, persisted learned workflows, and automatic replay remain out of scope.
+- compact results expose `api_version`, operation/provenance, verification summary, minimal state-change summary, and the underlying exact execution result.
+- runtime/schema parity is enforced before dispatch: maximum 64 steps, top-level and per-step `timeout_ms >= 1`, and condition/verify JSON Pointer length at most 256 Unicode characters.
+- invalid compact bounds fail before any candidate side effect.
+- the compact surface is additive; existing granular `desktop_*` tools remain available unchanged.
+
+Final ARO-P0C verification evidence:
+
+- PR #13 final feature head: `3723a9c090e3deaed5acf626c8e7dae10cfb0746`.
+- PR #13 final feature tree: `6b6b67bc4838def6d0b490e795257795929254f7`.
+- exact-head CI #65 / run `34452517347`: PASS.
+- exact-head CodeQL #65 / run `34452517345`: PASS.
+- exact-head Supply Chain #65 / run `34452517356`: PASS.
+- PR #13 guarded squash merge: `c29d291b0f5cf7c6712165ac8204cd9725647233`, tree `6b6b67bc4838def6d0b490e795257795929254f7`.
+- initial post-merge CI #66 / run `34454566703`: PASS.
+- initial post-merge CodeQL #66 / run `34454566815`: PASS.
+- initial post-merge Supply Chain #66 / run `34454566702`: PASS.
+- initial post-merge Release #16 / run `34454566772`: PASS.
+- runtime-bound hardening PR #14 final head: `bfea5c4ccc9f8b97284a7d86f4873e656d21c420`, tree `352b7cd34766a6b33437ca493c57148fec468ca3`.
+- PR #14 exact-head CI #68 / run `34455540410`: PASS.
+- PR #14 exact-head CodeQL #68 / run `34455540510`: PASS.
+- PR #14 exact-head Supply Chain #68 / run `34455540574`: PASS.
+- PR #14 guarded squash merge: `7d934135491e220740d6c1af6d5449e2324b9560`, tree `352b7cd34766a6b33437ca493c57148fec468ca3`.
+- post-hardening Supply Chain #69 / run `34458017873`: PASS; CodeQL #69 / run `34458017888`: PASS; Release #17 / run `34458017912`: PASS.
+- post-hardening CI #69 / run `34458017919` exposed a Windows x64 file-lock deadline regression instead of being waived.
+- repair PR #15 final head: `225a897bc26bc7335aeb324a6d4f81456447e253`, tree `8b7dc61fcd3f2aa1a05f807901ecf854ce831ff8`.
+- repair exact-head CI #72 / run `34469010952`: PASS, including the Windows x64 unit/E2E lane that caught the regression.
+- repair exact-head CodeQL #72 / run `34469010963`: PASS.
+- repair exact-head Supply Chain #72 / run `34469010945`: PASS.
+- PR #15 guarded squash merge: `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`, tree `8b7dc61fcd3f2aa1a05f807901ecf854ce831ff8`.
+- final P0C code-baseline CI #73 / run `34470409683`: PASS.
+- final P0C code-baseline CodeQL #73 / run `34470409728`: PASS.
+- final P0C code-baseline Supply Chain #73 / run `34470409795`: PASS.
+- final P0C code-baseline Release #18 / run `34470409691`: PASS.
+- real-machine acceptance runbook: `docs/agent-runtime-optimization-p0c-real-machine-test.md`.
+- retained P0A optimization proof: cold `tree_reads: 28` -> warm `tree_reads: 0`.
+- P0C optimization claim is intentionally limited to reducing harness round trips by carrying compound condition/action/verification work in one compact call. No wall-clock latency claim is made without measured evidence.
 
 ## P1A - View Handles and State Delta
 
