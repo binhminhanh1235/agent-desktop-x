@@ -8,6 +8,7 @@ use crate::{cli::Commands, cli_args::batch::BatchArgs};
 
 mod schema;
 mod validation;
+mod view;
 
 pub(super) const TOOL_NAMES: [&str; 3] = ["desktop.observe", "desktop.execute", "desktop.run"];
 
@@ -36,6 +37,8 @@ struct ObserveRequest {
     command: String,
     #[serde(default)]
     args: Option<Value>,
+    #[serde(default)]
+    view: Option<view::ViewRequest>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -126,7 +129,7 @@ fn observe(
     let command = crate::batch::parse_command(BatchCommand {
         command: request.command.clone(),
         session: None,
-        args,
+        args: args.clone(),
         timeout_ms: None,
         condition: None,
         verify: None,
@@ -140,6 +143,14 @@ fn observe(
 
     let context = CommandContext::default().with_headed(headed);
     let result = crate::execute_with_adapter(command, adapter, &context)?;
+    let confidence = result.get("confidence").cloned();
+    let view_observation = request
+        .view
+        .as_ref()
+        .map(|view_request| {
+            view::record_observation(&request.command, &args, &result, view_request)
+        })
+        .transpose()?;
     let mut output = json!({
         "api_version": API_VERSION,
         "operation": "observe",
@@ -151,9 +162,19 @@ fn observe(
         "verification": {
             "state": "not_applicable"
         },
-        "result": result,
     });
-    if let Some(confidence) = output["result"].get("confidence").cloned() {
+    match view_observation {
+        Some(observation) => {
+            output["view"] = observation.metadata;
+            if let Some(delta) = observation.delta {
+                output["delta"] = delta;
+            } else {
+                output["result"] = result;
+            }
+        }
+        None => output["result"] = result,
+    }
+    if let Some(confidence) = confidence {
         output["confidence"] = confidence;
     }
     Ok(output)
