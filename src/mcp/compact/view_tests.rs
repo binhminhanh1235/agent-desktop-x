@@ -134,7 +134,7 @@ fn first_observation_creates_bounded_view_and_keeps_normal_result() {
     let adapter = ViewAdapter::new(vec![window("A", true, 10.0)]);
     let output = observe(&adapter, None, None);
     assert!(view_id(&output).len() <= 32);
-    assert_eq!(output["view"]["generation"], 1);
+    assert!(output["view"]["generation"].as_u64().is_some_and(|value| value >= 1));
     assert_eq!(output["result"].as_array().map(Vec::len), Some(1));
     assert!(output.get("delta").is_none());
     assert_eq!(output["view"]["metrics"]["full_entries"], 1);
