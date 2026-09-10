@@ -19,7 +19,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ID | Priority | Task | Depends on | Status | Evidence |
 |---|---|---|---|---|---|
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
-| ARO-P0B | P0 | Compound Execution Engine | P0A foundation | CODE COMPLETE | branch `feat/agent-runtime-optimization-p0b`; PR #12; manual optimization/safety acceptance PASS; PR-run CI/CodeQL/Supply Chain #56 PASS; exact-head and post-merge gates pending |
+| ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | PLANNED | |
 | ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | PLANNED | |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
@@ -114,7 +114,7 @@ Only one vertical slice should be IN PROGRESS at a time unless two slices are pr
 
 ## ARO-P0B - Compound Execution Engine
 
-Status: CODE COMPLETE - VERIFYING
+Status: DONE / VERIFIED
 
 Implementation prompt: `docs/prompts/agent-runtime-optimization-p0b.md`
 
@@ -131,14 +131,14 @@ Implementation prompt: `docs/prompts/agent-runtime-optimization-p0b.md`
 - [x] never replay the main mutation after verification failure.
 - [x] add compact plan trace metadata without payload values.
 - [x] targeted P0B tests PASS.
-- [ ] exact-head CI PASS.
-- [ ] exact-head CodeQL PASS.
-- [ ] exact-head Supply Chain PASS.
-- [ ] guarded merge.
-- [ ] post-merge CI PASS.
-- [ ] post-merge CodeQL PASS.
-- [ ] post-merge Supply Chain PASS.
-- [ ] post-merge Release PASS.
+- [x] exact-head CI PASS.
+- [x] exact-head CodeQL PASS.
+- [x] exact-head Supply Chain PASS.
+- [x] guarded merge.
+- [x] post-merge CI PASS.
+- [x] post-merge CodeQL PASS.
+- [x] post-merge Supply Chain PASS.
+- [x] post-merge Release PASS.
 
 ### Manual optimization and safety acceptance
 
@@ -162,13 +162,32 @@ P0B evidence:
 - B7 nested assertion preflight: PASS. Mutating assertion was rejected before any side effect.
 - B8 compact trace payload privacy: PASS. Secret payload was absent from `plan_trace`; trace contained only bounded metadata.
 
-### PR candidate verification checkpoint
+Manual acceptance summary: PASS 12/12.
+
+### Final verification checkpoint
 
 - PR: #12
-- pre-evidence code head: `f900b983704a5f6c2bc6fa761c67232740d7ff24`
-- pre-evidence code tree: `b643c18ef9497c1dec4d693974dd28466b476b5c`
-- PR-run CI #56 / run `34428089309`: PASS
-- PR-run CodeQL #56 / run `34428089316`: PASS
-- PR-run Supply Chain #56 / run `34428089313`: PASS
-- manual optimization/safety acceptance: PASS 12/12
-- P0C remains PLANNED and untouched.
+- final feature head: `9f0ce7c0850e941fc33988d495410a4ff86f785d`
+- final feature tree: `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`
+- exact-head CI #58 / run `34440064110`: PASS
+- exact-head CodeQL #58 / run `34440064150`: PASS
+- exact-head Supply Chain #58 / run `34440064114`: PASS
+- guarded squash merge expected head: `9f0ce7c0850e941fc33988d495410a4ff86f785d`
+- merge commit: `e2356cb984695c21f992619bd918d850bbecdd7d`
+- merge tree: `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`
+- post-merge CI #59 / run `34441106403`: PASS
+- post-merge CodeQL #59 / run `34441106418`: PASS
+- post-merge Supply Chain #59 / run `34441106394`: PASS
+- post-merge Release #14 / run `34441106399`: PASS
+- Windows x64 full Test: PASS
+- Windows ARM64 full Test: PASS
+- Windows E2E contract gate: PASS
+- refusal guard: PASS
+- capture redaction: PASS
+- fixture compile smoke: PASS
+- shipped binary size: PASS
+- profile isolation: PASS
+- cleanup/post-job steps: PASS
+- P0A optimization evidence retained: cold `tree_reads: 28` -> warm `tree_reads: 0`.
+- P0B compound execution reduces multiple harness round trips into one runtime call while preserving delivery/no-replay safety semantics.
+- ARO-P0C remains PLANNED and untouched.

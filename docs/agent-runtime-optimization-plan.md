@@ -1,6 +1,6 @@
 # Agent Runtime Optimization Plan
 
-Status: ARO-P0A DONE / VERIFIED; ARO-P0B IN PROGRESS
+Status: ARO-P0A DONE / VERIFIED; ARO-P0B DONE / VERIFIED
 Branch: `feat/agent-runtime-optimization`
 Verified baseline main: `72772258cca0471fed3eb8603eba0185eced55c2`
 Verified baseline tree: `5c5f9aa475064e56783cb9c7d46aea1b7060ee2b`
@@ -98,7 +98,6 @@ Implementation checkpoint for the production-real P0A vertical slice:
 - machine-readable trace event `app_profile.resolve` reports `live_hit`, `semantic_hit`, `revalidated`, `cache_miss`, `ambiguous`, or `invalidated`, plus resolution/provider/tree and cold/warm counters.
 - focused tests cover first-learn/warm reuse, reduced tree work, moved bounds, process+window recreation, duplicate refusal, corrupted cache, and identity mismatch.
 
-
 Final ARO-P0A verification evidence:
 
 - final branch head: `72da253b00e498215a32a15034877d32aa30474e`
@@ -114,7 +113,6 @@ Final ARO-P0A verification evidence:
 - post-merge CodeQL #50 / run `34379682651`: PASS
 - post-merge Supply Chain #50 / run `34379682629`: PASS
 - post-merge Release #12 / run `34379682645`: PASS
-- ARO-P0B and ARO-P0C remain PLANNED and were not started.
 
 ## P0B - Compound Execution Engine
 
@@ -163,6 +161,26 @@ Initial implementation direction:
 - existing action -> event wait pre-baseline logic remains the wait primitive for the first vertical slice.
 - compact `plan_trace` records only index/command/outcome/phase/timing/disposition, never command payload values.
 - this is P0B foundation only; P0C will later expose the compact `desktop.execute` harness surface.
+
+Final ARO-P0B verification evidence:
+
+- status: DONE / VERIFIED.
+- manual optimization and safety acceptance: PASS 12/12.
+- retained P0A optimization evidence: cold lookup `tree_reads: 28`; warm lookup `tree_reads: 0`.
+- final feature head: `9f0ce7c0850e941fc33988d495410a4ff86f785d`.
+- final feature tree: `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`.
+- exact-head CI #58 / run `34440064110`: PASS.
+- exact-head CodeQL #58 / run `34440064150`: PASS.
+- exact-head Supply Chain #58 / run `34440064114`: PASS.
+- PR #12: guarded squash merge with expected head `9f0ce7c0850e941fc33988d495410a4ff86f785d`.
+- merge commit: `e2356cb984695c21f992619bd918d850bbecdd7d`.
+- merge tree: `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`.
+- post-merge CI #59 / run `34441106403`: PASS, including Windows x64 and Windows ARM64 full lanes, Windows E2E contract gate, refusal guard, capture redaction, fixture compile smoke, binary size, profile isolation, and cleanup.
+- post-merge CodeQL #59 / run `34441106418`: PASS.
+- post-merge Supply Chain #59 / run `34441106394`: PASS.
+- post-merge Release #14 / run `34441106399`: PASS.
+- P0B compound execution reduces multiple harness round trips into one runtime call while preserving delivery disposition and no-replay mutation safety semantics.
+- ARO-P0C remains PLANNED and was not started.
 
 ## P0C - Compact Agent API
 
