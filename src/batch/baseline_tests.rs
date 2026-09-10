@@ -89,6 +89,7 @@ fn action_then_event_wait_uses_a_pre_action_baseline() {
         ])
         .to_string(),
         stop_on_error: true,
+        semantic: false,
         timeout_ms: 60_000,
     };
     let adapter = AtomicEventAdapter {

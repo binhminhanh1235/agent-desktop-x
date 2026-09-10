@@ -1,6 +1,6 @@
 # Agent Runtime Optimization Plan
 
-Status: ARO-P0A DONE / VERIFIED
+Status: ARO-P0A DONE / VERIFIED; ARO-P0B IN PROGRESS
 Branch: `feat/agent-runtime-optimization`
 Verified baseline main: `72772258cca0471fed3eb8603eba0185eced55c2`
 Verified baseline tree: `5c5f9aa475064e56783cb9c7d46aea1b7060ee2b`
@@ -149,6 +149,20 @@ Acceptance:
 - timeout does not exceed caller budget.
 - verification failure is distinct from transport success.
 - destructive ambiguity refuses.
+
+Initial implementation direction:
+
+- extend the existing batch engine instead of creating a second execution stack.
+- preserve legacy batch behavior by default; `--semantic` opts into semantic compound guardrails.
+- batch items may add `timeout_ms`, a read-only `condition`, and a read-only `verify` assertion.
+- assertions use a bounded JSON Pointer + expected JSON value, so verification is deterministic without evaluating scripts.
+- semantic mode rejects direct coordinate-only mutation before any side effect.
+- per-step deadlines are child deadlines capped by the existing whole-batch deadline.
+- successful action dispatch is never replayed because verification failed.
+- verification errors inherit the action delivery disposition and remain retry-unsafe after delivered mutation.
+- existing action -> event wait pre-baseline logic remains the wait primitive for the first vertical slice.
+- compact `plan_trace` records only index/command/outcome/phase/timing/disposition, never command payload values.
+- this is P0B foundation only; P0C will later expose the compact `desktop.execute` harness surface.
 
 ## P0C - Compact Agent API
 

@@ -14,6 +14,7 @@ fn permission_report_is_collected_only_for_permission_consumers() {
     let batch = Commands::Batch(crate::cli_args::batch::BatchArgs {
         commands_json: "[]".into(),
         stop_on_error: false,
+        semantic: false,
         timeout_ms: 1,
     });
     let open_system_surface =

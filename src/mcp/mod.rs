@@ -97,6 +97,9 @@ pub(super) fn invoke_tool(
         command,
         session: None,
         args: arguments,
+        timeout_ms: None,
+        condition: None,
+        verify: None,
     })?;
     let context = CommandContext::default().with_headed(headed);
     crate::execute_with_adapter(command, adapter, &context)

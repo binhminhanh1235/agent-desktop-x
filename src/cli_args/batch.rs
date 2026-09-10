@@ -8,6 +8,11 @@ pub(crate) struct BatchArgs {
     pub stop_on_error: bool,
     #[arg(
         long,
+        help = "Enable semantic compound guardrails and reject coordinate-only mutating steps"
+    )]
+    pub semantic: bool,
+    #[arg(
+        long,
         default_value = "60000",
         help = "Absolute wall-clock budget for the whole non-atomic batch"
     )]
