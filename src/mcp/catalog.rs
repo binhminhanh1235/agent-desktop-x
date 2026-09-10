@@ -29,11 +29,28 @@ pub(super) fn tools() -> Vec<ToolDescriptor> {
             }
         })
         .collect();
+    tools.extend(
+        super::compact::TOOL_NAMES
+            .into_iter()
+            .map(|name| ToolDescriptor {
+                command: name.to_string(),
+                name: name.to_string(),
+                description: super::compact::description(name).to_string(),
+                input_schema: super::compact::input_schema(name),
+            }),
+    );
     tools.sort_by(|left, right| left.name.cmp(&right.name));
     tools
 }
 
+pub(super) fn contains_tool(tool_name: &str) -> bool {
+    tools().into_iter().any(|tool| tool.name == tool_name)
+}
+
 pub(super) fn command_for_tool(tool_name: &str) -> Option<String> {
+    if super::compact::is_compact_tool(tool_name) {
+        return None;
+    }
     tools()
         .into_iter()
         .find(|tool| tool.name == tool_name)
@@ -44,13 +61,22 @@ pub(super) fn list_result() -> Value {
     let tools = tools()
         .into_iter()
         .map(|tool| {
+            let compact = super::compact::is_compact_tool(&tool.name);
             json!({
                 "name": tool.name,
-                "title": format!("agent-desktop {}", tool.command),
-                "description": format!(
-                    "{} Arguments are the same structured JSON fields accepted by the matching batch command.",
+                "title": if compact {
+                    tool.command.clone()
+                } else {
+                    format!("agent-desktop {}", tool.command)
+                },
+                "description": if compact {
                     tool.description
-                ),
+                } else {
+                    format!(
+                        "{} Arguments are the same structured JSON fields accepted by the matching batch command.",
+                        tool.description
+                    )
+                },
                 "inputSchema": tool.input_schema,
             })
         })
@@ -112,7 +138,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn catalog_is_deterministic_and_contains_skills() {
+    fn catalog_is_deterministic_and_contains_skills_and_compact_api() {
         let first = tools();
         let second = tools();
         let names = first
@@ -128,15 +154,20 @@ mod tests {
         );
         assert!(names.contains(&"desktop_snapshot"));
         assert!(names.contains(&"desktop_skills"));
+        assert!(names.contains(&"desktop.observe"));
+        assert!(names.contains(&"desktop.execute"));
+        assert!(names.contains(&"desktop.run"));
         assert!(!names.contains(&"desktop_batch"));
         assert!(!names.contains(&"desktop_cursor_overlay"));
     }
 
     #[test]
-    fn tool_name_round_trips_to_cli_command() {
+    fn granular_tool_name_round_trips_to_cli_command() {
         assert_eq!(
             command_for_tool("desktop_list_windows").as_deref(),
             Some("list-windows")
         );
+        assert_eq!(command_for_tool("desktop.execute"), None);
+        assert!(contains_tool("desktop.execute"));
     }
 }

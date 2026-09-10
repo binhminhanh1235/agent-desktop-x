@@ -65,6 +65,14 @@ fn tools_list_and_skills_call_work_over_wire() {
             .iter()
             .any(|tool| tool["name"].as_str() == Some("desktop_skills"))
     );
+    for compact in ["desktop.observe", "desktop.execute", "desktop.run"] {
+        assert!(
+            tools
+                .iter()
+                .any(|tool| tool["name"].as_str() == Some(compact)),
+            "missing compact tool {compact}"
+        );
+    }
 
     let skill = handle(
         json!({
@@ -88,6 +96,37 @@ fn tools_list_and_skills_call_work_over_wire() {
         skill["result"]["content"][0]["text"]
             .as_str()
             .is_some_and(|text| text.contains("agent-desktop"))
+    );
+}
+
+#[test]
+fn compact_observe_works_over_wire_without_replacing_granular_tools() {
+    let response = handle(
+        json!({
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {
+                "name": "desktop.observe",
+                "arguments": {
+                    "command": "version",
+                    "args": {}
+                }
+            }
+        }),
+        &crate::test_noop_ops::NoopAdapter,
+        false,
+    )
+    .expect("compact observe response");
+
+    assert_eq!(response["result"]["isError"], false);
+    assert_eq!(
+        response["result"]["structuredContent"]["operation"],
+        "observe"
+    );
+    assert_eq!(
+        response["result"]["structuredContent"]["provenance"]["engine"],
+        "granular-dispatch"
     );
 }
 
