@@ -272,12 +272,17 @@ fn canonical_windows(result: &Value) -> Result<BTreeMap<String, Value>, AppError
 }
 
 fn required_string<'a>(value: Option<&'a Value>, field: &str) -> Result<&'a str, AppError> {
-    value.and_then(Value::as_str).filter(|value| !value.is_empty()).ok_or_else(|| {
-        view_error(
-            "VIEW_IDENTITY_UNSAFE",
-            format!("window {field} is unavailable; safe semantic identity cannot be established"),
-        )
-    })
+    value
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            view_error(
+                "VIEW_IDENTITY_UNSAFE",
+                format!(
+                    "window {field} is unavailable; safe semantic identity cannot be established"
+                ),
+            )
+        })
 }
 
 fn semantic_key(app: &str, pid: u64, process_instance: &str, title: &str) -> String {
