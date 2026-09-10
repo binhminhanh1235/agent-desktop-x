@@ -379,7 +379,5 @@ fn one_change_delta_is_smaller_than_full_observation_for_many_windows() {
                 .as_u64()
                 .unwrap()
     );
-    assert!(
-        serde_json::to_vec(&second).unwrap().len() < serde_json::to_vec(&first).unwrap().len()
-    );
+    assert!(serde_json::to_vec(&second).unwrap().len() < serde_json::to_vec(&first).unwrap().len());
 }
