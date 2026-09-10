@@ -19,7 +19,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ID | Priority | Task | Depends on | Status | Evidence |
 |---|---|---|---|---|---|
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
-| ARO-P0B | P0 | Compound Execution Engine | P0A foundation | PLANNED | |
+| ARO-P0B | P0 | Compound Execution Engine | P0A foundation | IN PROGRESS | branch `feat/agent-runtime-optimization-p0b`; prompt `docs/prompts/agent-runtime-optimization-p0b.md` |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | PLANNED | |
 | ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | PLANNED | |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
@@ -112,3 +112,31 @@ post-merge Release:
 ## Working rule
 
 Only one vertical slice should be IN PROGRESS at a time unless two slices are proven independent. Do not broaden scope merely because adjacent architecture is attractive.
+
+## ARO-P0B - Compound Execution Engine
+
+Status: IN PROGRESS
+
+Implementation prompt: `docs/prompts/agent-runtime-optimization-p0b.md`
+
+### Initial vertical slice
+
+- [x] reuse the existing batch executor rather than create a parallel engine.
+- [x] keep legacy batch behavior unchanged by default.
+- [x] add opt-in semantic compound guardrails.
+- [x] add typed per-item condition and verification assertions.
+- [x] preflight nested assertions before side effects.
+- [x] add per-step deadlines capped by the whole-plan deadline.
+- [x] preserve action -> event-wait baseline behavior.
+- [x] carry mutation delivery semantics through verification failures.
+- [x] never replay the main mutation after verification failure.
+- [x] add compact plan trace metadata without payload values.
+- [ ] targeted P0B tests PASS.
+- [ ] exact-head CI PASS.
+- [ ] exact-head CodeQL PASS.
+- [ ] exact-head Supply Chain PASS.
+- [ ] guarded merge.
+- [ ] post-merge CI PASS.
+- [ ] post-merge CodeQL PASS.
+- [ ] post-merge Supply Chain PASS.
+- [ ] post-merge Release PASS.
