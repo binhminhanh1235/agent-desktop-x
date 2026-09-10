@@ -29,12 +29,16 @@ pub(super) fn tools() -> Vec<ToolDescriptor> {
             }
         })
         .collect();
-    tools.extend(super::compact::TOOL_NAMES.into_iter().map(|name| ToolDescriptor {
-        command: name.to_string(),
-        name: name.to_string(),
-        description: super::compact::description(name).to_string(),
-        input_schema: super::compact::input_schema(name),
-    }));
+    tools.extend(
+        super::compact::TOOL_NAMES
+            .into_iter()
+            .map(|name| ToolDescriptor {
+                command: name.to_string(),
+                name: name.to_string(),
+                description: super::compact::description(name).to_string(),
+                input_schema: super::compact::input_schema(name),
+            }),
+    );
     tools.sort_by(|left, right| left.name.cmp(&right.name));
     tools
 }

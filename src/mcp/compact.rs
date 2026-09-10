@@ -1,7 +1,5 @@
 use agent_desktop_core::{
-    AppError, PlatformAdapter,
-    commands::batch::BatchCommand,
-    context::CommandContext,
+    AppError, PlatformAdapter, commands::batch::BatchCommand, context::CommandContext,
 };
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -173,11 +171,7 @@ fn execute(
     )
 }
 
-fn run(
-    arguments: Value,
-    adapter: &dyn PlatformAdapter,
-    headed: bool,
-) -> Result<Value, AppError> {
+fn run(arguments: Value, adapter: &dyn PlatformAdapter, headed: bool) -> Result<Value, AppError> {
     let request: RunRequest = decode("desktop.run", arguments)?;
     let workflow = validate_workflow_name(request.workflow)?;
     execute_steps(
@@ -492,7 +486,10 @@ mod tests {
         assert!(!commands.iter().any(|value| value == "snapshot"));
         assert!(!commands.iter().any(|value| value == "screenshot"));
         assert_eq!(schema["additionalProperties"], false);
-        assert_eq!(input_schema("desktop.execute")["properties"]["steps"]["maxItems"], 64);
+        assert_eq!(
+            input_schema("desktop.execute")["properties"]["steps"]["maxItems"],
+            64
+        );
     }
 
     #[test]
