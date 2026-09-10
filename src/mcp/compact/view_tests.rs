@@ -1,9 +1,12 @@
-use std::sync::{Mutex, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    Mutex,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use agent_desktop_core::{
-    ActionOps, AdapterError, ClipboardContent, ClipboardFormat, Deadline, InputOps, InteractionLease,
-    ObservationOps, PermissionReport, PermissionState, ProcessId, Rect, SystemOps, WindowFilter,
-    WindowInfo, WindowState,
+    ActionOps, AdapterError, ClipboardContent, ClipboardFormat, Deadline, InputOps,
+    InteractionLease, ObservationOps, PermissionReport, PermissionState, ProcessId, Rect,
+    SystemOps, WindowFilter, WindowInfo, WindowState,
 };
 use serde_json::{Value, json};
 
@@ -134,7 +137,11 @@ fn first_observation_creates_bounded_view_and_keeps_normal_result() {
     let adapter = ViewAdapter::new(vec![window("A", true, 10.0)]);
     let output = observe(&adapter, None, None);
     assert!(view_id(&output).len() <= 32);
-    assert!(output["view"]["generation"].as_u64().is_some_and(|value| value >= 1));
+    assert!(
+        output["view"]["generation"]
+            .as_u64()
+            .is_some_and(|value| value >= 1)
+    );
     assert_eq!(output["result"].as_array().map(Vec::len), Some(1));
     assert!(output.get("delta").is_none());
     assert_eq!(output["view"]["metrics"]["full_entries"], 1);
@@ -145,7 +152,10 @@ fn identical_second_observation_is_empty_delta_and_performs_fresh_read() {
     let adapter = ViewAdapter::new(vec![window("A", true, 10.0)]);
     let first = observe(&adapter, None, None);
     let second = observe(&adapter, Some(view_id(&first)), None);
-    assert_eq!(second["delta"], json!({"added":[], "removed":[], "changed":[]}));
+    assert_eq!(
+        second["delta"],
+        json!({"added":[], "removed":[], "changed":[]})
+    );
     assert!(second.get("result").is_none());
     assert_eq!(adapter.list_calls.load(Ordering::SeqCst), 2);
     assert_eq!(second["view"]["metrics"]["delta_entries"], 0);
@@ -164,14 +174,23 @@ fn addition_removal_and_change_emit_only_the_relevant_entity() {
 
     adapter.set_windows(vec![window("B", false, 30.0)]);
     let removed = observe(&adapter, Some(view_id(&added)), None);
-    assert_eq!(removed["delta"]["removed"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        removed["delta"]["removed"].as_array().map(Vec::len),
+        Some(1)
+    );
     assert_eq!(removed["delta"]["added"].as_array().map(Vec::len), Some(0));
 
     adapter.set_windows(vec![window("B", true, 99.0)]);
     let changed = observe(&adapter, Some(view_id(&removed)), None);
-    assert_eq!(changed["delta"]["changed"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        changed["delta"]["changed"].as_array().map(Vec::len),
+        Some(1)
+    );
     assert_eq!(changed["delta"]["added"].as_array().map(Vec::len), Some(0));
-    assert_eq!(changed["delta"]["removed"].as_array().map(Vec::len), Some(0));
+    assert_eq!(
+        changed["delta"]["removed"].as_array().map(Vec::len),
+        Some(0)
+    );
 }
 
 #[test]
@@ -180,9 +199,17 @@ fn provider_order_does_not_change_delta_order_or_create_false_changes() {
     let first = observe(&adapter, None, None);
     adapter.set_windows(vec![window("A", true, 10.0), window("B", false, 30.0)]);
     let second = observe(&adapter, Some(view_id(&first)), None);
-    assert_eq!(second["delta"], json!({"added":[], "removed":[], "changed":[]}));
+    assert_eq!(
+        second["delta"],
+        json!({"added":[], "removed":[], "changed":[]})
+    );
 
-    adapter.set_windows(vec![window("D", false, 40.0), window("C", false, 35.0), window("A", true, 10.0), window("B", false, 30.0)]);
+    adapter.set_windows(vec![
+        window("D", false, 40.0),
+        window("C", false, 35.0),
+        window("A", true, 10.0),
+        window("B", false, 30.0),
+    ]);
     let third = observe(&adapter, Some(view_id(&second)), None);
     let keys = third["delta"]["added"]
         .as_array()
@@ -282,7 +309,10 @@ fn canonical_view_never_persists_native_window_id() {
 #[test]
 fn expired_view_refuses_explicitly() {
     let start = Instant::now();
-    let scope = ObservationScope { command: "list-windows".into(), app: None };
+    let scope = ObservationScope {
+        command: "list-windows".into(),
+        app: None,
+    };
     let mut store = ViewStore::new(2, Duration::from_millis(1));
     let inserted = store.insert(scope.clone(), BTreeMap::new(), None, start);
     let error = store
@@ -294,7 +324,10 @@ fn expired_view_refuses_explicitly() {
 #[test]
 fn capacity_eviction_is_oldest_first_and_deterministic() {
     let now = Instant::now();
-    let scope = ObservationScope { command: "list-windows".into(), app: None };
+    let scope = ObservationScope {
+        command: "list-windows".into(),
+        app: None,
+    };
     let mut store = ViewStore::new(2, Duration::from_secs(10));
     let first = store.insert(scope.clone(), BTreeMap::new(), None, now);
     let second = store.insert(scope.clone(), BTreeMap::new(), None, now);
@@ -334,10 +367,19 @@ fn one_change_delta_is_smaller_than_full_observation_for_many_windows() {
 
     assert_eq!(second["view"]["metrics"]["full_entries"], 30);
     assert_eq!(second["view"]["metrics"]["delta_entries"], 1);
-    assert_eq!(second["view"]["metrics"]["harness_calls_this_observation"], 1);
-    assert!(
-        second["view"]["metrics"]["delta_payload_bytes"].as_u64().unwrap()
-            < second["view"]["metrics"]["full_result_bytes"].as_u64().unwrap()
+    assert_eq!(
+        second["view"]["metrics"]["harness_calls_this_observation"],
+        1
     );
-    assert!(serde_json::to_vec(&second).unwrap().len() < serde_json::to_vec(&first).unwrap().len());
+    assert!(
+        second["view"]["metrics"]["delta_payload_bytes"]
+            .as_u64()
+            .unwrap()
+            < second["view"]["metrics"]["full_result_bytes"]
+                .as_u64()
+                .unwrap()
+    );
+    assert!(
+        serde_json::to_vec(&second).unwrap().len() < serde_json::to_vec(&first).unwrap().len()
+    );
 }
