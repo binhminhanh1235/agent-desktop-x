@@ -1,6 +1,9 @@
-use std::sync::{
-    Mutex,
-    atomic::{AtomicUsize, Ordering},
+use std::{
+    sync::{
+        Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
+    time::{Duration, Instant},
 };
 
 use agent_desktop_core::{
@@ -198,4 +201,73 @@ fn legacy_batch_without_compound_metadata_keeps_old_surface() {
     assert!(output.get("compound").is_none());
     assert!(output.get("plan_trace").is_none());
     assert_eq!(adapter.clears.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn invalid_nested_assertion_rejects_plan_before_any_side_effect() {
+    let adapter = CompoundAdapter::new("payload");
+    let error = execute(
+        args(json!([
+            {"command": "clipboard-clear", "args": {}},
+            {
+                "command": "version",
+                "args": {},
+                "verify": {
+                    "command": "clipboard-clear",
+                    "args": {},
+                    "json_pointer": "/cleared",
+                    "equals": true
+                }
+            }
+        ])),
+        &adapter,
+        &PermissionReport::default(),
+        &CommandContext::default(),
+    )
+    .expect_err("mutating verification must fail plan preparation");
+
+    assert_eq!(error.code(), "INVALID_ARGS");
+    assert_eq!(adapter.clears.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn per_step_timeout_is_capped_and_reported_without_exceeding_plan_budget() {
+    let adapter = CompoundAdapter::new("payload");
+    let started = Instant::now();
+    let output = execute(
+        args(json!([{
+            "command": "wait",
+            "args": {"ms": 5000},
+            "timeout_ms": 25
+        }])),
+        &adapter,
+        &PermissionReport::default(),
+        &CommandContext::default(),
+    )
+    .expect("step timeout remains a structured compound result");
+
+    assert!(started.elapsed() < Duration::from_millis(500));
+    assert_eq!(output["results"][0]["error"]["code"], "TIMEOUT");
+    assert_eq!(output["plan_trace"][0]["outcome"], "failed");
+}
+
+#[test]
+fn compact_plan_trace_never_copies_command_payload_values() {
+    let secret = "payload-value-that-must-not-enter-plan-trace";
+    let adapter = CompoundAdapter::new(secret);
+    let output = execute(
+        args(json!([{
+            "command": "clipboard-get",
+            "args": {}
+        }])),
+        &adapter,
+        &PermissionReport::default(),
+        &CommandContext::default(),
+    )
+    .expect("read-only compound step succeeds");
+
+    assert_eq!(output["results"][0]["data"]["text"], secret);
+    let trace = serde_json::to_string(&output["plan_trace"]).expect("trace JSON");
+    assert!(!trace.contains(secret));
+    assert!(trace.contains("clipboard-get"));
 }
