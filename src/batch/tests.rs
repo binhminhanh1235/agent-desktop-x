@@ -9,6 +9,9 @@ fn item(command: &str, args: Value) -> BatchCommand {
         command: command.to_string(),
         session: None,
         args,
+        timeout_ms: None,
+        condition: None,
+        verify: None,
     }
 }
 
@@ -113,6 +116,7 @@ fn stop_on_error_halts_after_first_failure() {
         ])
         .to_string(),
         stop_on_error: true,
+        semantic: false,
         timeout_ms: 60_000,
     };
 
