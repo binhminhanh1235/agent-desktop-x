@@ -97,30 +97,26 @@ fn lock_file(
     purpose: &str,
     path: &Path,
 ) -> Result<FileLock, AdapterError> {
-    let mut contention_count = 0_u64;
-
     // Opening and validating a private lock file is part of the caller's budget,
     // but a slow filesystem must not turn an otherwise-free, non-blocking lock
     // into a false timeout. Always make one immediate try_lock attempt. The
     // deadline governs waiting/retries only after real contention is observed.
-    match file.try_lock() {
+    let mut contention_count = match file.try_lock() {
         Ok(()) => {
             return Ok(FileLock {
                 _file: file,
                 #[cfg(unix)]
-                contention_count,
+                contention_count: 0,
             });
         }
-        Err(std::fs::TryLockError::WouldBlock) => {
-            contention_count = 1;
-        }
+        Err(std::fs::TryLockError::WouldBlock) => 1_u64,
         Err(std::fs::TryLockError::Error(error)) => {
             return Err(AdapterError::new(
                 ErrorCode::Internal,
                 format!("Failed to acquire {purpose}: {error}"),
             ));
         }
-    }
+    };
 
     loop {
         if deadline.is_expired() {
