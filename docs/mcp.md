@@ -61,9 +61,9 @@ The modern server advertises tools, resources, and prompts. Cacheable list/resou
 
 ## Tools
 
-MCP tools mirror the CLI command surface and use the `desktop_` prefix. Hyphens become underscores.
+MCP keeps the granular CLI-shaped tools and also exposes the compact Agent Runtime Optimization API.
 
-Examples:
+Granular tools use the `desktop_` prefix. Hyphens become underscores.
 
 | CLI | MCP tool |
 |---|---|
@@ -72,9 +72,84 @@ Examples:
 | `click` | `desktop_click` |
 | `skills` | `desktop_skills` |
 
-Tool arguments are structured JSON with the same field names accepted by the matching command in batch JSON. Tool execution reuses the normal agent-desktop command parser, permission preflight, interaction policy, and dispatcher rather than a second MCP-specific implementation.
+Granular tool arguments are structured JSON with the same field names accepted by the matching command in batch JSON. Tool execution reuses the normal agent-desktop command parser, permission preflight, interaction policy, and dispatcher rather than a second MCP-specific implementation.
 
-`batch` is not recursively exposed as an MCP tool because MCP already provides the call boundary. `cursor-overlay` remains a session/configuration command and is not in the MCP tool catalog.
+`batch` is not recursively exposed as a granular MCP tool because MCP already provides the call boundary. `cursor-overlay` remains a session/configuration command and is not in the MCP tool catalog.
+
+### Compact Agent API
+
+For agent harnesses that want a small stable surface, prefer these three tools:
+
+- `desktop.observe`: one targeted read-only observation. Full `snapshot` and `screenshot` are intentionally excluded from this compact surface so a harness cannot accidentally request a giant accessibility-tree or image payload. Granular tools remain available when explicitly required.
+- `desktop.execute`: one or more semantic steps executed through the P0B compound engine. `semantic: true` is enforced by the runtime, so coordinate-only mutating steps fail during preflight before earlier side effects can run.
+- `desktop.run`: the same semantic compound execution path plus a bounded caller-defined workflow identifier. P0C does not persist workflow definitions and does not introduce durable jobs or automatic replay.
+
+`desktop.execute` and `desktop.run` preserve the existing command policy, permission preflight, per-step and whole-plan deadlines, condition/verification behavior, delivery disposition, and mutation no-replay contract. Their response adds a compact wrapper with `api_version`, `operation`, `provenance`, `verification`, and `state_change`; the underlying compound result remains available under `result` for exact delivery evidence.
+
+Targeted observation example:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "desktop.observe",
+    "arguments": {
+      "command": "list-windows",
+      "args": {}
+    }
+  }
+}
+```
+
+Semantic compound example:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/call",
+  "params": {
+    "name": "desktop.execute",
+    "arguments": {
+      "steps": [
+        {
+          "command": "clipboard-clear",
+          "args": {},
+          "verify": {
+            "command": "clipboard-get",
+            "args": {},
+            "json_pointer": "/text",
+            "equals": ""
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Named workflow invocation uses the same step shape:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "desktop.run",
+    "arguments": {
+      "workflow": "clear-clipboard",
+      "steps": [
+        { "command": "clipboard-clear", "args": {} }
+      ]
+    }
+  }
+}
+```
+
+The compact API is additive. Existing hosts can continue using every granular `desktop_*` tool unchanged.
 
 ## Skills over MCP
 
@@ -143,6 +218,7 @@ MCP does not bypass normal agent-desktop safety behavior.
 - Headless mode stays the default.
 - Physical operations still require headed policy.
 - UI refs keep the same snapshot/ref validation and stale-ref behavior.
+- Compact execute/run force semantic compound mode and never replay a delivered mutation because verification failed.
 - Tool errors are returned as MCP tool errors with the normal agent-desktop error payload in `structuredContent`.
 
 The server is intentionally stdio-first. Remote HTTP exposure is not enabled by this feature.
