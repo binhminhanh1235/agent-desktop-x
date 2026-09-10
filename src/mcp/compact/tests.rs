@@ -62,7 +62,12 @@ fn schemas_are_bounded_and_observe_excludes_full_tree() {
     assert_eq!(schema["additionalProperties"], false);
     assert_eq!(
         input_schema("desktop.execute")["properties"]["steps"]["maxItems"],
-        64
+        MAX_STEPS
+    );
+    assert_eq!(
+        input_schema("desktop.execute")["properties"]["steps"]["items"]["properties"]
+            ["verify"]["properties"]["json_pointer"]["maxLength"],
+        MAX_ASSERTION_JSON_POINTER_CHARS
     );
 }
 
@@ -99,6 +104,84 @@ fn execute_reuses_semantic_preflight_before_any_side_effect() {
     .expect_err("coordinate-only mutation must fail semantic preflight");
     assert_eq!(error.code(), "INVALID_ARGS");
     assert_eq!(adapter.clears.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn execute_enforces_runtime_step_and_timeout_bounds_before_side_effects() {
+    let adapter = CompactAdapter {
+        clears: AtomicUsize::new(0),
+    };
+    let too_many_steps = (0..=MAX_STEPS)
+        .map(|_| json!({ "command": "clipboard-clear", "args": {} }))
+        .collect::<Vec<_>>();
+    let error = invoke(
+        "desktop.execute",
+        json!({ "steps": too_many_steps }),
+        &adapter,
+        false,
+    )
+    .expect_err("step count must be runtime bounded");
+    assert_eq!(error.code(), "INVALID_ARGS");
+    assert_eq!(adapter.clears.load(Ordering::SeqCst), 0);
+
+    let error = invoke(
+        "desktop.execute",
+        json!({
+            "steps": [{ "command": "clipboard-clear", "args": {} }],
+            "timeout_ms": 0
+        }),
+        &adapter,
+        false,
+    )
+    .expect_err("zero plan timeout must be rejected");
+    assert_eq!(error.code(), "INVALID_ARGS");
+    assert_eq!(adapter.clears.load(Ordering::SeqCst), 0);
+
+    let error = invoke(
+        "desktop.execute",
+        json!({
+            "steps": [{
+                "command": "clipboard-clear",
+                "args": {},
+                "timeout_ms": 0
+            }]
+        }),
+        &adapter,
+        false,
+    )
+    .expect_err("zero step timeout must be rejected");
+    assert_eq!(error.code(), "INVALID_ARGS");
+    assert_eq!(adapter.clears.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn execute_enforces_assertion_pointer_bound_before_side_effects() {
+    let adapter = CompactAdapter {
+        clears: AtomicUsize::new(0),
+    };
+    let overlong_pointer = format!("/{}", "x".repeat(MAX_ASSERTION_JSON_POINTER_CHARS));
+
+    for assertion_name in ["condition", "verify"] {
+        let mut step = json!({
+            "command": "clipboard-clear",
+            "args": {}
+        });
+        step[assertion_name] = json!({
+            "command": "clipboard-get",
+            "args": {},
+            "json_pointer": overlong_pointer,
+            "equals": ""
+        });
+        let error = invoke(
+            "desktop.execute",
+            json!({ "steps": [step] }),
+            &adapter,
+            false,
+        )
+        .expect_err("overlong assertion pointer must be rejected");
+        assert_eq!(error.code(), "INVALID_ARGS");
+        assert_eq!(adapter.clears.load(Ordering::SeqCst), 0);
+    }
 }
 
 #[test]
