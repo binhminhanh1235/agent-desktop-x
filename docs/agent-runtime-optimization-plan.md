@@ -1,6 +1,6 @@
 # Agent Runtime Optimization Plan
 
-Status: IN PROGRESS - ARO-P0A CODE COMPLETE / VERIFYING
+Status: ARO-P0A DONE / VERIFIED
 Branch: `feat/agent-runtime-optimization`
 Verified baseline main: `72772258cca0471fed3eb8603eba0185eced55c2`
 Verified baseline tree: `5c5f9aa475064e56783cb9c7d46aea1b7060ee2b`
@@ -97,6 +97,24 @@ Implementation checkpoint for the production-real P0A vertical slice:
 - cache admission is intentionally narrow for this slice: exact identity queries with name, description, native id, or value; broad role-only/state/containment/text queries keep the existing cold path so outward `find` semantics do not narrow silently.
 - machine-readable trace event `app_profile.resolve` reports `live_hit`, `semantic_hit`, `revalidated`, `cache_miss`, `ambiguous`, or `invalidated`, plus resolution/provider/tree and cold/warm counters.
 - focused tests cover first-learn/warm reuse, reduced tree work, moved bounds, process+window recreation, duplicate refusal, corrupted cache, and identity mismatch.
+
+
+Final ARO-P0A verification evidence:
+
+- final branch head: `72da253b00e498215a32a15034877d32aa30474e`
+- final branch tree: `3ba6283b8cbdfcf98f215a5f2cc9c6459a9ab7e6`
+- exact-head verification used a temporary `master` ref pointing at the final branch head because the repository workflows accept push on `main`/`master`; runner checkout logs confirm the exact commit rather than a PR merge ref.
+- exact-head CI #49 / run `34377740049`: PASS
+- exact-head CodeQL #49 / run `34377740077`: PASS
+- exact-head Supply Chain #49 / run `34377740102`: PASS
+- PR #11: guarded squash merge with expected head `72da253b00e498215a32a15034877d32aa30474e`
+- merge commit: `69d071450f10780779ff327c74382748df99d306`
+- merge tree: `3ba6283b8cbdfcf98f215a5f2cc9c6459a9ab7e6`
+- post-merge CI #50 / run `34379682644`: PASS
+- post-merge CodeQL #50 / run `34379682651`: PASS
+- post-merge Supply Chain #50 / run `34379682629`: PASS
+- post-merge Release #12 / run `34379682645`: PASS
+- ARO-P0B and ARO-P0C remain PLANNED and were not started.
 
 ## P0B - Compound Execution Engine
 

@@ -18,7 +18,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 
 | ID | Priority | Task | Depends on | Status | Evidence |
 |---|---|---|---|---|---|
-| ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | CODE COMPLETE | PR #11; implementation checkpoint `bebec4046a380477415d0f347a508f134fc8807a`; final gates pending |
+| ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | PLANNED | |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | PLANNED | |
 | ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | PLANNED | |
@@ -32,7 +32,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 
 ## ARO-P0A - Semantic AppProfile Cache
 
-Status: CODE COMPLETE - VERIFYING
+Status: DONE / VERIFIED
 
 Implementation prompt: `docs/prompts/agent-runtime-optimization-p0a.md`
 
@@ -63,26 +63,32 @@ Reduce repeated accessibility/provider work by caching semantic selector knowled
 - [x] duplicate candidates refuse.
 - [x] corrupted/mismatched cache fails closed.
 - [x] existing CLI/MCP/Skills behavior is unchanged.
-- [ ] exact-head CI PASS.
-- [ ] exact-head CodeQL PASS.
-- [ ] exact-head Supply Chain PASS.
-- [ ] guarded merge.
-- [ ] post-merge CI PASS.
-- [ ] post-merge CodeQL PASS.
-- [ ] post-merge Supply Chain PASS.
-- [ ] post-merge Release PASS.
+- [x] exact-head CI PASS.
+- [x] exact-head CodeQL PASS.
+- [x] exact-head Supply Chain PASS.
+- [x] guarded merge.
+- [x] post-merge CI PASS.
+- [x] post-merge CodeQL PASS.
+- [x] post-merge Supply Chain PASS.
+- [x] post-merge Release PASS.
 
 ### Verification checkpoint
 
 - PR: #11
-- code implementation checkpoint before documentation sync: `bebec4046a380477415d0f347a508f134fc8807a`
-- previous run evidence used for root-cause fixing:
-  - Supply Chain #45: PASS
-  - Linux tests #45: PASS, confirming the prior session-GC failure was transient and unrelated to P0A
-  - stale-ref constructor policy #45: PASS
-  - remaining #45 P0A failure: two `unused_mut` Clippy findings, fixed at the implementation checkpoint above
-- final exact-head CI / CodeQL / Supply Chain remain intentionally unchecked until the documentation-synced head passes.
-- no merge has occurred; P0B/P0C remain untouched.
+- final branch head: `72da253b00e498215a32a15034877d32aa30474e`
+- final branch tree: `3ba6283b8cbdfcf98f215a5f2cc9c6459a9ab7e6`
+- exact-head CI #49 / run `34377740049`: PASS
+- exact-head CodeQL #49 / run `34377740077`: PASS
+- exact-head Supply Chain #49 / run `34377740102`: PASS
+- guarded squash merge expected head: `72da253b00e498215a32a15034877d32aa30474e`
+- merge commit: `69d071450f10780779ff327c74382748df99d306`
+- merge tree: `3ba6283b8cbdfcf98f215a5f2cc9c6459a9ab7e6`
+- post-merge CI #50 / run `34379682644`: PASS
+- post-merge CodeQL #50 / run `34379682651`: PASS
+- post-merge Supply Chain #50 / run `34379682629`: PASS
+- post-merge Release #12 / run `34379682645`: PASS
+- exact-head push verification used a temporary `master` ref that pointed at the final branch head; checkout logs recorded `72da253b00e498215a32a15034877d32aa30474e`, not `refs/pull/11/merge`.
+- P0B/P0C remain PLANNED and untouched.
 
 ## Evidence template
 
