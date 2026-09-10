@@ -143,9 +143,11 @@ pub(super) fn execute(
         if condition_blocks(
             index,
             &mut commands[index],
-            adapter,
-            permission_report,
-            &item_context,
+            ConditionContext {
+                adapter,
+                permission_report,
+                context: &item_context,
+            },
             &mut results,
             &mut results_bytes,
             compound.then_some(&mut plan_trace),
