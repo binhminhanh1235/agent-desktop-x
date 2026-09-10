@@ -73,6 +73,7 @@ fn batch_and_cli_produce_identical_envelopes_for_the_same_open() {
             commands_json:
                 r#"[{"command":"open-system-surface","args":{"surface":"action-center"}}]"#.into(),
             stop_on_error: false,
+            semantic: false,
             timeout_ms: 60_000,
         },
         &adapter,
@@ -121,6 +122,7 @@ fn an_adapter_without_any_desktop_capability_answers_identically_in_both_paths()
             commands_json: r#"[{"command":"open-system-surface","args":{"surface":"dock"}}]"#
                 .into(),
             stop_on_error: false,
+            semantic: false,
             timeout_ms: 60_000,
         },
         &NoopAdapter,
