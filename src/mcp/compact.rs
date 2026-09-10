@@ -7,11 +7,14 @@ use serde_json::{Value, json};
 use crate::{cli::Commands, cli_args::batch::BatchArgs};
 
 mod schema;
+mod validation;
 
 pub(super) const TOOL_NAMES: [&str; 3] = ["desktop.observe", "desktop.execute", "desktop.run"];
 
 const API_VERSION: u64 = 1;
 const DEFAULT_TIMEOUT_MS: u64 = 60_000;
+const MAX_STEPS: usize = 64;
+const MAX_ASSERTION_JSON_POINTER_CHARS: usize = 256;
 const MAX_WORKFLOW_NAME_BYTES: usize = 128;
 const OBSERVE_COMMANDS: &[&str] = &[
     "find",
@@ -197,12 +200,7 @@ fn execute_steps(
     adapter: &dyn PlatformAdapter,
     headed: bool,
 ) -> Result<Value, AppError> {
-    if steps.is_empty() {
-        return Err(AppError::invalid_input_with_suggestion(
-            format!("desktop.{operation} requires at least one step"),
-            "Provide one or more semantic command steps.",
-        ));
-    }
+    validation::execution_bounds(operation, &steps, timeout_ms)?;
     let commands_json = serde_json::to_string(&steps).map_err(|error| {
         AppError::invalid_input(format!(
             "desktop.{operation} could not encode steps: {error}"

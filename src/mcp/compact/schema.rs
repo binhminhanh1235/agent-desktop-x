@@ -1,6 +1,9 @@
 use serde_json::{Value, json};
 
-use super::{DEFAULT_TIMEOUT_MS, MAX_WORKFLOW_NAME_BYTES, OBSERVE_COMMANDS};
+use super::{
+    DEFAULT_TIMEOUT_MS, MAX_ASSERTION_JSON_POINTER_CHARS, MAX_STEPS, MAX_WORKFLOW_NAME_BYTES,
+    OBSERVE_COMMANDS,
+};
 
 pub(super) fn observe_schema() -> Value {
     json!({
@@ -29,7 +32,10 @@ pub(super) fn execute_schema(include_workflow: bool) -> Value {
         "properties": {
             "command": { "type": "string" },
             "args": { "type": "object", "additionalProperties": true },
-            "json_pointer": { "type": "string", "maxLength": 256 },
+            "json_pointer": {
+                "type": "string",
+                "maxLength": MAX_ASSERTION_JSON_POINTER_CHARS
+            },
             "equals": {}
         },
         "additionalProperties": false
@@ -51,7 +57,7 @@ pub(super) fn execute_schema(include_workflow: bool) -> Value {
         "steps": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 64,
+            "maxItems": MAX_STEPS,
             "items": step
         },
         "stop_on_error": {
