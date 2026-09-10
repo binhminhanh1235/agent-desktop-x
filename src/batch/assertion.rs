@@ -32,11 +32,7 @@ pub(super) fn run(
     })
 }
 
-pub(super) fn condition_error(
-    index: usize,
-    command: &str,
-    result: &AssertionResult,
-) -> AppError {
+pub(super) fn condition_error(index: usize, command: &str, result: &AssertionResult) -> AppError {
     agent_desktop_core::AdapterError::new(
         agent_desktop_core::ErrorCode::ActionFailed,
         format!("Compound condition for batch entry {index} ('{command}') was not satisfied"),
