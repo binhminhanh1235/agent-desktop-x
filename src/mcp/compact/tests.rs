@@ -65,8 +65,8 @@ fn schemas_are_bounded_and_observe_excludes_full_tree() {
         MAX_STEPS
     );
     assert_eq!(
-        input_schema("desktop.execute")["properties"]["steps"]["items"]["properties"]
-            ["verify"]["properties"]["json_pointer"]["maxLength"],
+        input_schema("desktop.execute")["properties"]["steps"]["items"]["properties"]["verify"]["properties"]
+            ["json_pointer"]["maxLength"],
         MAX_ASSERTION_JSON_POINTER_CHARS
     );
 }
