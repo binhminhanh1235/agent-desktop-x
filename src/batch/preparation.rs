@@ -94,7 +94,8 @@ fn parse_one(
         agent_desktop_core::context::validate_session_id(session)
             .map_err(|error| located_error(index, &name, error))?;
     }
-    if let Some(timeout_ms) = item.timeout_ms {
+    let timeout_ms = item.timeout_ms;
+    if let Some(timeout_ms) = timeout_ms {
         Deadline::detached_after(timeout_ms)
             .map_err(AppError::Adapter)
             .map_err(|error| located_error(index, &name, error))?;
@@ -130,7 +131,7 @@ fn parse_one(
         mutating: command.is_mutating(),
         command,
         session,
-        timeout_ms: item.timeout_ms,
+        timeout_ms,
         condition,
         verification,
     })
@@ -143,7 +144,8 @@ fn prepare_assertion(
     assertion: BatchAssertion,
     permission_report: &PermissionReport,
 ) -> Result<PreparedAssertion, AppError> {
-    validate_pointer(&assertion.json_pointer).map_err(|error| located_error(index, parent, error))?;
+    validate_pointer(&assertion.json_pointer)
+        .map_err(|error| located_error(index, parent, error))?;
     let name = assertion.command.clone();
     let command = super::parse_command(BatchCommand {
         command: assertion.command,
@@ -182,7 +184,10 @@ fn prepare_context(
         .map_err(|error| located_error(parsed.index, &parsed.name, error))?;
     crate::command_policy::preflight_context(&parsed.command, &item_context)
         .map_err(|error| located_error(parsed.index, &parsed.name, error))?;
-    for assertion in [&parsed.condition, &parsed.verification].into_iter().flatten() {
+    for assertion in [&parsed.condition, &parsed.verification]
+        .into_iter()
+        .flatten()
+    {
         crate::command_policy::preflight_context(&assertion.command, &item_context)
             .map_err(|error| located_error(parsed.index, &parsed.name, error))?;
     }
