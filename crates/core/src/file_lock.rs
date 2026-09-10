@@ -98,15 +98,41 @@ fn lock_file(
     path: &Path,
 ) -> Result<FileLock, AdapterError> {
     let mut contention_count = 0_u64;
+
+    // Opening and validating a private lock file is part of the caller's budget,
+    // but a slow filesystem must not turn an otherwise-free, non-blocking lock
+    // into a false timeout. Always make one immediate try_lock attempt. The
+    // deadline governs waiting/retries only after real contention is observed.
+    match file.try_lock() {
+        Ok(()) => {
+            return Ok(FileLock {
+                _file: file,
+                #[cfg(unix)]
+                contention_count,
+            });
+        }
+        Err(std::fs::TryLockError::WouldBlock) => {
+            contention_count = 1;
+        }
+        Err(std::fs::TryLockError::Error(error)) => {
+            return Err(AdapterError::new(
+                ErrorCode::Internal,
+                format!("Failed to acquire {purpose}: {error}"),
+            ));
+        }
+    }
+
     loop {
         if deadline.is_expired() {
             return Err(lock_timeout(deadline, purpose, path, contention_count));
         }
+        let remaining = deadline.remaining();
+        if remaining.is_zero() {
+            return Err(lock_timeout(deadline, purpose, path, contention_count));
+        }
+        std::thread::sleep(remaining.min(Duration::from_millis(10)));
         match file.try_lock() {
             Ok(()) => {
-                if deadline.is_expired() {
-                    return Err(lock_timeout(deadline, purpose, path, contention_count));
-                }
                 return Ok(FileLock {
                     _file: file,
                     #[cfg(unix)]
@@ -115,11 +141,6 @@ fn lock_file(
             }
             Err(std::fs::TryLockError::WouldBlock) => {
                 contention_count = contention_count.saturating_add(1);
-                let remaining = deadline.remaining();
-                if remaining.is_zero() {
-                    return Err(lock_timeout(deadline, purpose, path, contention_count));
-                }
-                std::thread::sleep(remaining.min(Duration::from_millis(10)));
             }
             Err(std::fs::TryLockError::Error(error)) => {
                 return Err(AdapterError::new(
@@ -147,4 +168,55 @@ fn lock_timeout(
 
 fn io_error(error: std::io::Error) -> AdapterError {
     AdapterError::new(ErrorCode::Internal, error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lock_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir()
+            .join(format!(
+                "agent-desktop-file-lock-{name}-{}-{}",
+                std::process::id(),
+                crate::refs::new_snapshot_id()
+            ))
+            .join("state.lock")
+    }
+
+    #[test]
+    fn uncontended_lock_gets_one_nonblocking_attempt_at_deadline() {
+        let path = lock_path("first-attempt");
+        let file = crate::private_file::open_private_lock(&path, true).unwrap();
+        let deadline = Deadline::after(0).unwrap();
+
+        let lock = lock_file(file, deadline, "test lock", &path).unwrap();
+        drop(lock);
+
+        let _ = std::fs::remove_file(&path);
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
+    }
+
+    #[test]
+    fn contended_lock_at_deadline_still_times_out_without_waiting() {
+        let path = lock_path("contended-deadline");
+        let held = crate::private_file::open_private_lock(&path, true).unwrap();
+        held.try_lock().unwrap();
+        let contender = crate::private_file::open_private_lock(&path, false).unwrap();
+        let deadline = Deadline::after(0).unwrap();
+
+        let error = match lock_file(contender, deadline, "test lock", &path) {
+            Ok(_) => panic!("contended lock unexpectedly acquired"),
+            Err(error) => error,
+        };
+        assert_eq!(error.code, ErrorCode::Timeout);
+
+        drop(held);
+        let _ = std::fs::remove_file(&path);
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
+    }
 }
