@@ -21,7 +21,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
-| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | READY | P0A/P0C dependencies verified; next vertical slice |
+| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | IN PROGRESS | branch `feat/agent-runtime-optimization-p1a`; exact base `89bc5ff2fcd2e5d1db935a50d440e82221accbf2` / tree `9892105cf0f29c26e472dd2a75323841074fcff7`; `list-windows` vertical slice |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
@@ -274,4 +274,23 @@ Optimization evidence retained across P0A-P0C:
 - P0B/P0C can carry condition/action/verification in one top-level runtime/MCP call instead of requiring separate harness calls.
 - no fixed latency speed-up is claimed without a measured wall-clock benchmark.
 
-P1A is the next vertical slice. P1B/P1C remain PLANNED until P1A is closed.
+## ARO-P1A - View Handles + State Delta
+
+Status: IN PROGRESS
+
+Implementation prompt: `docs/prompts/agent-runtime-optimization-p1a.md`
+
+Exact branch base:
+
+- main SHA: `89bc5ff2fcd2e5d1db935a50d440e82221accbf2`
+- tree: `9892105cf0f29c26e472dd2a75323841074fcff7`
+- working branch: `feat/agent-runtime-optimization-p1a`
+
+Verified initial boundary:
+
+- compact observe calls the existing granular dispatch path after parsing a `BatchCommand` and enforcing read-only semantics;
+- `list-windows` reaches `PlatformAdapter::list_windows` and returns serialized `WindowInfo` values;
+- on Windows, `WindowInfo.id` is `w-<HWND>`, so P1A must not persist/use that field as canonical view identity;
+- mutation remains on the P0B/P0C semantic compound engine and no view path may bypass it.
+
+P1B/P1C remain PLANNED until P1A is closed.
