@@ -91,16 +91,15 @@ impl FileLock {
 
 /// Drops a contended lock without unlocking: shared file descriptions need drop,
 /// not unlock. On the adopt path, shared descriptions exist and must be left alone.
+/// The first `try_lock` is always non-blocking even when opening and validating the
+/// file consumed the caller's budget; the deadline governs only contention waits
+/// and retries, so a free lock cannot become a false timeout after slow setup.
 fn lock_file(
     file: File,
     deadline: Deadline,
     purpose: &str,
     path: &Path,
 ) -> Result<FileLock, AdapterError> {
-    // Opening and validating a private lock file is part of the caller's budget,
-    // but a slow filesystem must not turn an otherwise-free, non-blocking lock
-    // into a false timeout. Always make one immediate try_lock attempt. The
-    // deadline governs waiting/retries only after real contention is observed.
     let mut contention_count = match file.try_lock() {
         Ok(()) => {
             return Ok(FileLock {
