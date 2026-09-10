@@ -16,8 +16,11 @@ use crate::{
     },
 };
 
+mod assertion;
 mod bounded_json;
 mod execution;
+mod execution_support;
+mod plan_trace;
 mod preparation;
 mod result_entry;
 
@@ -28,6 +31,10 @@ mod baseline_tests;
 #[cfg(test)]
 #[path = "open_system_surface_parity_tests.rs"]
 mod open_system_surface_parity_tests;
+
+#[cfg(test)]
+#[path = "compound_tests.rs"]
+mod compound_tests;
 
 pub(crate) fn execute(
     args: BatchArgs,
