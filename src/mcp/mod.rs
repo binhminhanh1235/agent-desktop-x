@@ -1,4 +1,5 @@
 mod catalog;
+mod compact;
 mod protocol;
 mod skills;
 
@@ -91,6 +92,10 @@ pub(super) fn invoke_tool(
     adapter: &dyn PlatformAdapter,
     headed: bool,
 ) -> Result<Value, AppError> {
+    if compact::is_compact_tool(tool_name) {
+        return compact::invoke(tool_name, arguments, adapter, headed);
+    }
+
     let command = catalog::command_for_tool(tool_name)
         .ok_or_else(|| AppError::invalid_input(format!("Unknown MCP tool '{tool_name}'")))?;
     let command = crate::batch::parse_command(BatchCommand {

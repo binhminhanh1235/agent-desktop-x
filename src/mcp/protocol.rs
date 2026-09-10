@@ -71,7 +71,7 @@ fn call_tool(
         .get("name")
         .and_then(Value::as_str)
         .ok_or_else(|| ProtocolError::invalid_params("tools/call requires string 'name'"))?;
-    if super::catalog::command_for_tool(name).is_none() {
+    if !super::catalog::contains_tool(name) {
         return Err(ProtocolError::invalid_params(format!(
             "Unknown MCP tool '{name}'"
         )));
@@ -187,7 +187,7 @@ fn modern_capabilities() -> Value {
 }
 
 fn instructions() -> &'static str {
-    "Native Rust desktop automation. Read agent-desktop://skills/agent-desktop before complex workflows. Tool names mirror CLI commands with a desktop_ prefix; arguments use the same structured JSON object as batch commands."
+    "Native Rust desktop automation. Prefer desktop.observe, desktop.execute, and desktop.run for compact harness integration; granular desktop_* tools remain available for compatibility and debugging. Read agent-desktop://skills/agent-desktop before complex workflows."
 }
 
 fn server_info() -> Value {
