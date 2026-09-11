@@ -21,7 +21,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
-| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | CODE COMPLETE | code head `0cec4906f8d4e3e4596cdccfc51f7f0b5a476955` / tree `7996745280a7fb2717794de52e3b373fa7ff81fd`; acceptance 18/18; code-head CI #85 / CodeQL #85 / Supply Chain #85 PASS; docs-inclusive head must be re-gated before merge |
+| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | DONE / VERIFIED | final branch `b874e4fafad4b2312ec3a87a6ab0ed4b37cdfe8e` / tree `e0a571dbf853132760333e9bf2056a1ceb415a2f`; exact-head CI/CodeQL/Supply Chain #86 PASS; PR #16; merge `8c7f4bcc4c46c956f06b101fdb329562d3ddc8c7`; post-merge CI/CodeQL/Supply Chain #88 + Release #20 PASS |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
@@ -276,7 +276,7 @@ Optimization evidence retained across P0A-P0C:
 
 ## ARO-P1A - View Handles + State Delta
 
-Status: CODE COMPLETE
+Status: DONE / VERIFIED
 
 Implementation prompt: `docs/prompts/agent-runtime-optimization-p1a.md`
 
@@ -336,24 +336,26 @@ Deterministic focused scenario: 30 semantic windows are observed, then exactly o
 - no wall-clock latency or percentage speed-up claim is made because P1A has not added a wall-clock benchmark.
 - P0A `tree_reads: 28 -> 0` is retained as separate P0A evidence and is not presented as P1A delta evidence.
 
-### Code-head verification checkpoint
+### Final verification checkpoint
 
-Final implementation head before this tracking-only evidence commit:
-
-- code head: `0cec4906f8d4e3e4596cdccfc51f7f0b5a476955`
-- code tree: `7996745280a7fb2717794de52e3b373fa7ff81fd`
-- exact-head CI #85 / run `34554344677`: PASS.
-- exact-head CodeQL #85 / run `34554344739`: PASS.
-- exact-head Supply Chain #85 / run `34554344674`: PASS.
-- Windows x64 `Core and Windows unit tests`: PASS.
-- Windows x64 example tests: PASS.
-- Windows x64 binary command tests: PASS.
-- Windows x64 FFI integration: PASS.
-- Windows x64 release binary: PASS.
-- Windows E2E contract gate, seeded-failure gate, capture redaction, citation gate, refusal guard, fixture compile, binary-size, profile isolation, and cleanup/post-job steps: PASS.
+- final branch head: `b874e4fafad4b2312ec3a87a6ab0ed4b37cdfe8e`
+- final branch tree: `e0a571dbf853132760333e9bf2056a1ceb415a2f`
+- exact-head CI #86 / run `34560362822`: PASS.
+- exact-head CodeQL #86 / run `34560362795`: PASS.
+- exact-head Supply Chain #86 / run `34560362814`: PASS.
+- PR: #16 `feat(aro): add P1A view handles and state delta`.
+- guarded squash merge expected head: `b874e4fafad4b2312ec3a87a6ab0ed4b37cdfe8e`.
+- merge commit: `8c7f4bcc4c46c956f06b101fdb329562d3ddc8c7`.
+- merge tree: `e0a571dbf853132760333e9bf2056a1ceb415a2f`.
+- post-merge CI #88 / run `34561325014`: PASS.
+- post-merge CodeQL #88 / run `34561325011`: PASS.
+- post-merge Supply Chain #88 / run `34561325003`: PASS.
+- post-merge Release #20 / run `34561324981`: PASS.
+- post-merge Windows x64 full lane: PASS, including Clippy, core/unit tests, examples, binary command tests, FFI integration, stripped release binary, Windows E2E contract, seeded-failure, capture redaction, citation gate, refusal guard, fixture compile, binary-size, profile isolation, cleanup/post-job, and x64-vs-ARM64 lib-test parity.
+- Windows ARM64 full lane: PASS.
 
 The final Windows live-menu parity failure was traced to a fixture readiness race: the fixture previously announced menu readiness before Windows had actually entered the nested menu loop, allowing sequential detectors to observe different live snapshots. The fixture now emits menu `UP` / `DOWN` from `WM_ENTERMENULOOP` / `WM_EXITMENULOOP`. Production menu detection semantics, assertions, retry behavior, and timeout contracts were not weakened or inflated.
 
-This tracking update changes the feature HEAD. CI, CodeQL, and Supply Chain must therefore PASS again on the resulting exact docs-inclusive HEAD before PR creation or merge.
+This closure tracking commit changes `main`; the resulting final-main SHA must pass CI, CodeQL, Supply Chain, and Release before P1A is called finally closed outside this document.
 
-P1B/P1C/P2 remain PLANNED until P1A is merged and exact post-merge closure is fully verified.
+P1B/P1C/P2 remain PLANNED until that exact final-main closure verification passes.
