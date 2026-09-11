@@ -23,15 +23,14 @@ fn window_generation_event_invalidates_live_ref_and_preserves_semantics() {
     let adapter = ProfileCacheAdapter::new();
     execute(find_args(), &adapter, &CommandContext::default()).expect("cold find");
     let key = cache_key(&find_args());
-    let current_window =
-        ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
+    let current_window = ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
 
     let process = RuntimeProcessScope::new("ProfileApp", ProcessId::new(410), "proc-a")
         .expect("bounded process scope");
-    let previous = RuntimeWindowScope::new(process.clone(), "Profile Fixture")
-        .expect("bounded window scope");
-    let current = RuntimeWindowScope::new(process, "Profile Fixture")
-        .expect("bounded window scope");
+    let previous =
+        RuntimeWindowScope::new(process.clone(), "Profile Fixture").expect("bounded window scope");
+    let current =
+        RuntimeWindowScope::new(process, "Profile Fixture").expect("bounded window scope");
     publish_runtime_event(RuntimeEvent::WindowGenerationChanged { previous, current });
 
     let profile = match app_profile_cache::lookup(&key).expect("profile after window event") {
@@ -56,8 +55,7 @@ fn dropped_events_force_conservative_live_ref_invalidation() {
     let adapter = ProfileCacheAdapter::new();
     execute(find_args(), &adapter, &CommandContext::default()).expect("cold find");
     let key = cache_key(&find_args());
-    let current_window =
-        ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
+    let current_window = ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
 
     let before = match app_profile_cache::lookup(&key).expect("profile before overflow") {
         CacheLookup::Hit(profile) => profile,

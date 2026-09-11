@@ -272,11 +272,11 @@ mod test_support;
 mod live_tests;
 
 #[cfg(test)]
+#[path = "find_profile_cache_invalidation_tests.rs"]
+mod profile_cache_invalidation_tests;
+#[cfg(test)]
 #[path = "find_profile_cache_test_support.rs"]
 mod profile_cache_test_support;
 #[cfg(test)]
 #[path = "find_profile_cache_tests.rs"]
 mod profile_cache_tests;
-#[cfg(test)]
-#[path = "find_profile_cache_invalidation_tests.rs"]
-mod profile_cache_invalidation_tests;
