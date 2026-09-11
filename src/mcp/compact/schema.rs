@@ -19,6 +19,19 @@ pub(super) fn observe_schema() -> Value {
                 "type": "object",
                 "description": "Arguments for the selected read-only command.",
                 "additionalProperties": true
+            },
+            "view": {
+                "type": "object",
+                "description": "Optional short-lived observation evidence. P1A supports list-windows only; an empty object creates a view and previous_view_id requests a fresh scoped delta.",
+                "properties": {
+                    "previous_view_id": {
+                        "type": "string",
+                        "minLength": 19,
+                        "maxLength": 19,
+                        "pattern": "^v1-[0-9a-fA-F]{16}$"
+                    }
+                },
+                "additionalProperties": false
             }
         },
         "additionalProperties": false
@@ -59,6 +72,13 @@ pub(super) fn execute_schema(include_workflow: bool) -> Value {
             "minItems": 1,
             "maxItems": MAX_STEPS,
             "items": step
+        },
+        "expected_view_id": {
+            "type": "string",
+            "minLength": 19,
+            "maxLength": 19,
+            "pattern": "^v1-[0-9a-fA-F]{16}$",
+            "description": "Optional P1A observation precondition. The view is re-observed before dispatch and never replaces semantic preflight or live target resolution."
         },
         "stop_on_error": {
             "type": "boolean",

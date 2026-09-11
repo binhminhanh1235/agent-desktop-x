@@ -1,5 +1,5 @@
 use agent_desktop_core::{
-    AppError, PlatformAdapter, commands::batch::BatchCommand, context::CommandContext,
+    AppError, Deadline, PlatformAdapter, commands::batch::BatchCommand, context::CommandContext,
 };
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -8,6 +8,8 @@ use crate::{cli::Commands, cli_args::batch::BatchArgs};
 
 mod schema;
 mod validation;
+mod view;
+mod view_delta;
 
 pub(super) const TOOL_NAMES: [&str; 3] = ["desktop.observe", "desktop.execute", "desktop.run"];
 
@@ -36,12 +38,16 @@ struct ObserveRequest {
     command: String,
     #[serde(default)]
     args: Option<Value>,
+    #[serde(default)]
+    view: Option<view::ViewRequest>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ExecuteRequest {
     steps: Vec<Value>,
+    #[serde(default)]
+    expected_view_id: Option<String>,
     #[serde(default = "default_true")]
     stop_on_error: bool,
     #[serde(default = "default_timeout_ms")]
@@ -53,6 +59,8 @@ struct ExecuteRequest {
 struct RunRequest {
     workflow: String,
     steps: Vec<Value>,
+    #[serde(default)]
+    expected_view_id: Option<String>,
     #[serde(default = "default_true")]
     stop_on_error: bool,
     #[serde(default = "default_timeout_ms")]
@@ -126,7 +134,7 @@ fn observe(
     let command = crate::batch::parse_command(BatchCommand {
         command: request.command.clone(),
         session: None,
-        args,
+        args: args.clone(),
         timeout_ms: None,
         condition: None,
         verify: None,
@@ -140,6 +148,14 @@ fn observe(
 
     let context = CommandContext::default().with_headed(headed);
     let result = crate::execute_with_adapter(command, adapter, &context)?;
+    let confidence = result.get("confidence").cloned();
+    let view_observation = request
+        .view
+        .as_ref()
+        .map(|view_request| {
+            view::record_observation(&request.command, &args, &result, view_request)
+        })
+        .transpose()?;
     let mut output = json!({
         "api_version": API_VERSION,
         "operation": "observe",
@@ -151,9 +167,19 @@ fn observe(
         "verification": {
             "state": "not_applicable"
         },
-        "result": result,
     });
-    if let Some(confidence) = output["result"].get("confidence").cloned() {
+    match view_observation {
+        Some(observation) => {
+            output["view"] = observation.metadata;
+            if let Some(delta) = observation.delta {
+                output["delta"] = delta;
+            } else {
+                output["result"] = result;
+            }
+        }
+        None => output["result"] = result,
+    }
+    if let Some(confidence) = confidence {
         output["confidence"] = confidence;
     }
     Ok(output)
@@ -168,6 +194,7 @@ fn execute(
     execute_steps(
         "execute",
         None,
+        request.expected_view_id,
         request.steps,
         request.stop_on_error,
         request.timeout_ms,
@@ -182,6 +209,7 @@ fn run(arguments: Value, adapter: &dyn PlatformAdapter, headed: bool) -> Result<
     execute_steps(
         "run",
         Some(workflow),
+        request.expected_view_id,
         request.steps,
         request.stop_on_error,
         request.timeout_ms,
@@ -194,6 +222,7 @@ fn run(arguments: Value, adapter: &dyn PlatformAdapter, headed: bool) -> Result<
 fn execute_steps(
     operation: &'static str,
     workflow: Option<String>,
+    expected_view_id: Option<String>,
     steps: Vec<Value>,
     stop_on_error: bool,
     timeout_ms: u64,
@@ -201,6 +230,20 @@ fn execute_steps(
     headed: bool,
 ) -> Result<Value, AppError> {
     validation::execution_bounds(operation, &steps, timeout_ms)?;
+    let mut view_freshness = None;
+    let mut batch_timeout_ms = timeout_ms;
+    if let Some(expected_view_id) = expected_view_id.as_deref() {
+        let deadline = Deadline::after(timeout_ms)?;
+        view_freshness = Some(view::validate_expected_view(
+            expected_view_id,
+            adapter,
+            deadline,
+        )?);
+        batch_timeout_ms = deadline.remaining_ms();
+        if batch_timeout_ms == 0 {
+            return Err(deadline.timeout_error().into());
+        }
+    }
     let commands_json = serde_json::to_string(&steps).map_err(|error| {
         AppError::invalid_input(format!(
             "desktop.{operation} could not encode steps: {error}"
@@ -210,7 +253,7 @@ fn execute_steps(
         commands_json,
         stop_on_error,
         semantic: true,
-        timeout_ms,
+        timeout_ms: batch_timeout_ms,
     });
     let context = CommandContext::default().with_headed(headed);
     let result = crate::execute_with_adapter(command, adapter, &context)?;
@@ -226,14 +269,18 @@ fn execute_steps(
         provenance["workflow"] = json!(workflow);
     }
 
-    Ok(json!({
+    let mut output = json!({
         "api_version": API_VERSION,
         "operation": operation,
         "provenance": provenance,
         "verification": verification,
         "state_change": state_change,
         "result": result,
-    }))
+    });
+    if let Some(view_freshness) = view_freshness {
+        output["view_freshness"] = view_freshness;
+    }
+    Ok(output)
 }
 
 fn verification_summary(steps: &[Value], result: &Value) -> Value {
@@ -346,3 +393,7 @@ fn default_timeout_ms() -> u64 {
 #[cfg(test)]
 #[path = "compact/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "compact/view_freshness_tests.rs"]
+mod view_freshness_tests;

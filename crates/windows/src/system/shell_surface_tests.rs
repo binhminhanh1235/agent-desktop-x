@@ -96,6 +96,7 @@ fn uia_child_count(handle: isize) -> usize {
 fn strict_headless_open_refuses_before_raising() {
     bootstrap();
     let _lock = SHELL_SURFACE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _stage = crate::tree::fixture_window::on_screen_stage();
     dismiss_first(SnapshotSurface::ActionCenter);
     assert!(
         wait_for_foreground_to_settle(),
