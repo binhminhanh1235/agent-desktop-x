@@ -4,7 +4,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use agent_desktop_core::{AppError, Deadline, PlatformAdapter, WindowFilter};
+use agent_desktop_core::{
+    AppError, Deadline, PlatformAdapter, WindowFilter,
+    runtime_events::{
+        RuntimeEvent, RuntimeEventCursor, RuntimeEventMetrics, runtime_event_cursor,
+        runtime_event_metrics, runtime_events_since,
+    },
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -37,6 +43,15 @@ struct StoredView {
     scope: ObservationScope,
     state: BTreeMap<String, Value>,
     parent: Option<ViewId>,
+    invalidated: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct ViewInvalidationMetrics {
+    events_applied: u64,
+    views_invalidated: u64,
+    unrelated_views_retained: u64,
+    overflow_resets: u64,
 }
 
 #[derive(Debug)]
@@ -47,6 +62,9 @@ struct ViewStore {
     next_generation: u64,
     entries: BTreeMap<ViewId, StoredView>,
     insertion_order: VecDeque<ViewId>,
+    event_cursor: RuntimeEventCursor,
+    event_metrics: RuntimeEventMetrics,
+    invalidation: ViewInvalidationMetrics,
 }
 
 pub(super) struct ViewObservation {
@@ -63,7 +81,66 @@ impl ViewStore {
             next_generation: 1,
             entries: BTreeMap::new(),
             insertion_order: VecDeque::new(),
+            event_cursor: runtime_event_cursor(),
+            event_metrics: runtime_event_metrics(),
+            invalidation: ViewInvalidationMetrics::default(),
         }
+    }
+
+    fn apply_pending_events(&mut self) {
+        let batch = runtime_events_since(self.event_cursor);
+        self.event_cursor = batch.cursor;
+        self.event_metrics = batch.metrics;
+        if batch.overflowed {
+            self.invalidate_all_for_overflow();
+        }
+        for event in batch.events {
+            self.apply_event(&event);
+        }
+    }
+
+    fn invalidate_all_for_overflow(&mut self) {
+        let invalidated = self
+            .entries
+            .values_mut()
+            .filter(|view| {
+                if view.invalidated {
+                    false
+                } else {
+                    view.invalidated = true;
+                    true
+                }
+            })
+            .count() as u64;
+        self.invalidation.views_invalidated = self
+            .invalidation
+            .views_invalidated
+            .saturating_add(invalidated);
+        self.invalidation.overflow_resets = self.invalidation.overflow_resets.saturating_add(1);
+    }
+
+    fn apply_event(&mut self, event: &RuntimeEvent) {
+        let mut invalidated = 0_u64;
+        let mut retained = 0_u64;
+        for view in self.entries.values_mut() {
+            if event_invalidates_scope(event, &view.scope) {
+                if !view.invalidated {
+                    view.invalidated = true;
+                    invalidated = invalidated.saturating_add(1);
+                }
+            } else {
+                retained = retained.saturating_add(1);
+            }
+        }
+        self.invalidation.events_applied = self.invalidation.events_applied.saturating_add(1);
+        self.invalidation.views_invalidated = self
+            .invalidation
+            .views_invalidated
+            .saturating_add(invalidated);
+        self.invalidation.unrelated_views_retained = self
+            .invalidation
+            .unrelated_views_retained
+            .saturating_add(retained);
     }
 
     fn live(&mut self, raw_id: &str, now: Instant) -> Result<StoredView, AppError> {
@@ -79,6 +156,12 @@ impl ViewStore {
             return Err(view_error(
                 "VIEW_EXPIRED",
                 format!("view '{}' has expired", raw_id),
+            ));
+        }
+        if view.invalidated {
+            return Err(view_error(
+                "VIEW_STALE",
+                format!("view '{}' was invalidated by a runtime lifecycle event", raw_id),
             ));
         }
         Ok(view)
@@ -124,6 +207,7 @@ impl ViewStore {
             scope,
             state,
             parent,
+            invalidated: false,
         };
         self.insertion_order.push_back(id.clone());
         self.entries.insert(id, view.clone());
@@ -187,6 +271,13 @@ pub(super) fn record_observation(
             "full_result_bytes": full_result_bytes,
             "delta_payload_bytes": delta_bytes,
             "harness_calls_this_observation": 1,
+            "event_queue_depth": store.event_metrics.depth,
+            "event_queue_max_depth": store.event_metrics.max_depth,
+            "event_queue_dropped": store.event_metrics.dropped,
+            "invalidation_events_applied": store.invalidation.events_applied,
+            "views_invalidated": store.invalidation.views_invalidated,
+            "unrelated_views_retained": store.invalidation.unrelated_views_retained,
+            "event_overflow_resets": store.invalidation.overflow_resets,
         }
     });
     Ok(ViewObservation { metadata, delta })
@@ -207,6 +298,8 @@ pub(super) fn validate_expected_view(
             "expected view does not belong to a freshness-checkable P1A surface",
         ));
     }
+    // An event can only make a stored view stale. Passing that gate never
+    // substitutes for P1A's provider re-observation below.
     let windows = adapter.list_windows(
         &WindowFilter {
             focused_only: false,
@@ -234,10 +327,34 @@ pub(super) fn validate_expected_view(
 
 fn global_store() -> MutexGuard<'static, ViewStore> {
     static STORE: OnceLock<Mutex<ViewStore>> = OnceLock::new();
-    STORE
+    let mut store = STORE
         .get_or_init(|| Mutex::new(ViewStore::new(VIEW_CAPACITY, VIEW_TTL)))
         .lock()
-        .unwrap_or_else(PoisonError::into_inner)
+        .unwrap_or_else(PoisonError::into_inner);
+    store.apply_pending_events();
+    store
+}
+
+fn event_invalidates_scope(event: &RuntimeEvent, scope: &ObservationScope) -> bool {
+    let event_app = match event {
+        RuntimeEvent::ProcessStarted { current } => Some(current.app()),
+        RuntimeEvent::ProcessReplaced { previous, .. }
+        | RuntimeEvent::ProcessExited { previous } => Some(previous.app()),
+        RuntimeEvent::WindowCreated { current } => Some(current.process().app()),
+        RuntimeEvent::WindowDestroyed { previous }
+        | RuntimeEvent::WindowGenerationChanged { previous, .. } => {
+            Some(previous.process().app())
+        }
+        RuntimeEvent::AccessibilityTreeInvalidated { process } => Some(process.app()),
+        RuntimeEvent::ProviderReset => None,
+    };
+    match event_app {
+        None => true,
+        Some(event_app) => scope
+            .app
+            .as_deref()
+            .is_none_or(|app| app.eq_ignore_ascii_case(event_app.trim())),
+    }
 }
 
 fn scope_for(command: &str, args: &Value) -> Result<ObservationScope, AppError> {
