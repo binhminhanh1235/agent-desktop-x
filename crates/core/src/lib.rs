@@ -124,6 +124,7 @@ mod retryability;
 mod role;
 pub mod role_text;
 pub mod roles;
+pub mod runtime_events;
 pub mod screenshot_target;
 pub(crate) mod search_text;
 pub mod session;
