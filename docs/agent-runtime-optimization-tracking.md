@@ -22,7 +22,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
 | ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | DONE / VERIFIED | final branch `b874e4fafad4b2312ec3a87a6ab0ed4b37cdfe8e` / tree `e0a571dbf853132760333e9bf2056a1ceb415a2f`; exact-head CI/CodeQL/Supply Chain #86 PASS; PR #16; merge `8c7f4bcc4c46c956f06b101fdb329562d3ddc8c7`; post-merge CI/CodeQL/Supply Chain #88 + Release #20 PASS |
-| ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
+| ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | IN PROGRESS | branch `feat/agent-runtime-optimization-p1b`; prompt `docs/prompts/agent-runtime-optimization-p1b.md` |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
 | ARO-P2B | P2 | Learned Actions + Record-to-Skill | P0B, P1C | PLANNED | |
