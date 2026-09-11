@@ -23,7 +23,8 @@ fn window_generation_event_invalidates_live_ref_and_preserves_semantics() {
     let adapter = ProfileCacheAdapter::new();
     execute(find_args(), &adapter, &CommandContext::default()).expect("cold find");
     let key = cache_key(&find_args());
-    let current_window = ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
+    let current_window =
+        ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
 
     let process = RuntimeProcessScope::new("ProfileApp", ProcessId::new(410), "proc-a")
         .expect("bounded process scope");
@@ -55,7 +56,8 @@ fn dropped_events_force_conservative_live_ref_invalidation() {
     let adapter = ProfileCacheAdapter::new();
     execute(find_args(), &adapter, &CommandContext::default()).expect("cold find");
     let key = cache_key(&find_args());
-    let current_window = ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
+    let current_window =
+        ProfileCacheAdapter::window(&adapter.state.lock().expect("fixture lock"));
 
     let before = match app_profile_cache::lookup(&key).expect("profile before overflow") {
         CacheLookup::Hit(profile) => profile,
