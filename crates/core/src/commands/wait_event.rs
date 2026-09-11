@@ -1,7 +1,8 @@
 use crate::{
     AdapterError, AppError, ErrorCode, EventKind, ProcessIdentity, SignalBaseline, SignalFilter,
     UiEvent, adapter::PlatformAdapter, commands::wait_event_input::EventWaitInput, diff_signals,
-    process_state::ProcessState, signals::merge_signal_baseline,
+    process_state::ProcessState, runtime_events::publish_runtime_invalidation_diff,
+    signals::merge_signal_baseline,
 };
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
@@ -46,6 +47,10 @@ pub(crate) fn wait_for_event(
         None => (None, None),
     };
     let mut seen = baseline.clone();
+    // Runtime invalidation uses adjacent observations, not wait's fixed/union
+    // match baseline. That prevents an unrelated disappearance from being
+    // republished every poll while preserving the existing wait semantics.
+    let mut last_runtime_observation = baseline.clone();
 
     loop {
         if deadline.is_expired() {
@@ -71,6 +76,10 @@ pub(crate) fn wait_for_event(
 
         match observation {
             Ok(current) => {
+                if let Some(previous) = last_runtime_observation.as_ref() {
+                    publish_runtime_invalidation_diff(previous, &current);
+                }
+                last_runtime_observation = Some(current.clone());
                 validate_signal_scope(&filter, &current)?;
                 match &baseline {
                     None => {
