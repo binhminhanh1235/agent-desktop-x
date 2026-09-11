@@ -277,3 +277,6 @@ mod profile_cache_test_support;
 #[cfg(test)]
 #[path = "find_profile_cache_tests.rs"]
 mod profile_cache_tests;
+#[cfg(test)]
+#[path = "find_profile_cache_invalidation_tests.rs"]
+mod profile_cache_invalidation_tests;
