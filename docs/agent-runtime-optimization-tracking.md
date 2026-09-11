@@ -21,7 +21,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ARO-P0A | P0 | Semantic AppProfile Cache | verified baseline | DONE / VERIFIED | PR #11; final branch `72da253b00e498215a32a15034877d32aa30474e`; merge `69d071450f10780779ff327c74382748df99d306`; exact-head CI/CodeQL/Supply Chain and post-merge CI/CodeQL/Supply Chain/Release PASS |
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
-| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | CODE COMPLETE | implementation `5dad0f9cc378acf6954658806ecf5169bd1c05a2` / tree `fdefc52512e603c19d05e1f32f747ab99e1d94b6`; acceptance 15/15; code-head CI #81 / CodeQL #81 / Supply Chain #81 PASS; final docs head must be re-gated before merge |
+| ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | CODE COMPLETE | code head `0cec4906f8d4e3e4596cdccfc51f7f0b5a476955` / tree `7996745280a7fb2717794de52e3b373fa7ff81fd`; acceptance 18/18; code-head CI #85 / CodeQL #85 / Supply Chain #85 PASS; docs-inclusive head must be re-gated before merge |
 | ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | PLANNED | |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
@@ -292,9 +292,14 @@ Verified boundary and implementation:
 - P1A view flow is opt-in and currently supports only `list-windows`; legacy observe without `view` keeps the existing response contract;
 - views are process-local, thread-safe, bounded to 64 entries, TTL-bound to 30 seconds, and deterministically oldest-first evicted;
 - canonical view state and deltas are bounded, deterministically ordered, and use semantic comparison keys derived from app, PID, process generation, and title;
-- on Windows, raw `WindowInfo.id` is `w-<HWND>` and is explicitly excluded from persisted canonical view state and comparison identity;
+- raw/native `WindowInfo.id` is explicitly excluded from canonical view state and comparison identity, so runtime OS handles never become durable semantic identity;
 - missing or ambiguous safe semantic identity fails closed rather than falling back to runtime handles or provider array order;
-- mutation remains on the P0B/P0C semantic compound engine; `desktop.execute` does not accept view evidence as authorization.
+- optional top-level `expected_view_id` is available on `desktop.execute` and `desktop.run`, bounded to exactly 19 characters with schema pattern `^v1-[0-9a-fA-F]{16}$`;
+- before any mutation, `expected_view_id` resolves the short-lived stored view, performs a fresh provider `list_windows` observation in the same scope, canonicalizes current state, and compares it to the stored state;
+- unknown/expired views fail closed and changed state returns `VIEW_STALE` before side effects; freshness re-observation consumes the same whole-plan timeout budget rather than adding a second timeout budget;
+- view evidence is observation evidence, not authorization: a fresh expected view still enters the existing P0B/P0C semantic compound engine and cannot authorize coordinate-only mutation;
+- delivery disposition and mutation no-replay semantics remain owned by the unchanged P0B/P0C execution path;
+- baseline-to-feature changed files are limited to P1A compact/view code, focused tests, the Windows menu fixture, prompt/tracking docs; no P1B event bus, P1C recovery/confidence expansion, P2 router/jobs/vision work, or granular MCP semantic changes are present.
 
 ### Acceptance mapping
 
@@ -304,43 +309,51 @@ Verified boundary and implementation:
 - [x] 4. one removed semantic entity produces exactly one `removed` entry.
 - [x] 5. one non-identity semantic state change produces exactly one `changed` entry.
 - [x] 6. provider/input ordering does not change canonical ordering or create false deltas.
-- [x] 7. unknown view ids refuse deterministically with `VIEW_UNKNOWN`.
+- [x] 7. unknown previous view ids refuse deterministically with `VIEW_UNKNOWN`.
 - [x] 8. expired views refuse explicitly with `VIEW_EXPIRED`.
 - [x] 9. incompatible observation scope refuses with `VIEW_SCOPE_MISMATCH`.
 - [x] 10. capacity eviction is deterministic and oldest-first.
 - [x] 11. canonical view state never persists raw/native runtime window ids; missing/ambiguous semantic identity fails closed.
-- [x] 12. stale view evidence cannot authorize mutation; `desktop.execute` rejects unknown `view` input before any mutation call.
-- [x] 13. mutation still traverses P0B/P0C semantic preflight and delivery/no-replay contracts; compact tests prove preflight-before-side-effect and exactly-once mutation with `mutation_replay: false`.
-- [x] 14. existing P0C calls without view fields remain backward compatible; legacy observe returns `result` without `view`/`delta`, and execute/run regression tests remain green.
-- [x] 15. existing granular MCP tools are unchanged; baseline-to-feature diff contains no granular MCP dispatch/tool implementation changes and full CI remains green.
+- [x] 12. execute/run schemas expose only bounded `expected_view_id`; fresh expected view is re-observed before mutation, while unknown/stale expected views refuse before any side effect with `VIEW_UNKNOWN` / `VIEW_STALE`.
+- [x] 13. `expected_view_id` is never mutation authorization and does not make coordinate-only mutation valid.
+- [x] 14. fresh expected view still traverses the P0B/P0C semantic preflight; focused tests prove the freshness read cannot bypass compound preflight.
+- [x] 15. delivery/no-replay semantics remain on the unchanged P0B/P0C path; P1A introduces no replay engine or alternate mutation path.
+- [x] 16. existing P0C calls without view fields remain backward compatible; legacy observe returns `result` without `view`/`delta`, and execute/run regression tests remain green.
+- [x] 17. existing granular MCP tools are unchanged; baseline-to-feature diff contains no granular MCP dispatch/tool implementation changes and full CI remains green.
+- [x] 18. scope stayed inside P1A: no P1B event bus/invalidation, no P1C recovery/confidence expansion, and no P2 capability router/durable jobs/vision implementation.
 
 ### Optimization evidence
 
-Scenario: 30 semantic windows are observed, then exactly one existing window changes bounds.
+Deterministic focused scenario: 30 semantic windows are observed, then exactly one existing window changes bounds.
 
 - full entries: 30.
 - subsequent delta entries: 1.
-- unchanged entities: omitted from the delta.
+- full result bytes: 7130 for the deterministic 30-window fixture serialization measured by the same `serde_json::to_vec` representation used by `full_result_bytes`.
+- delta payload bytes: 295 for the one-window changed delta fixture serialization measured by the same representation used by `delta_payload_bytes`.
+- unchanged entities: 29 omitted from the delta.
 - harness calls for each observation: 1.
-- runtime metadata measures `full_result_bytes` and `delta_payload_bytes`; focused acceptance asserts the one-change delta payload is smaller than the full result.
-- focused acceptance also asserts the serialized subsequent delta response is smaller than the first full-response envelope.
+- focused acceptance asserts the one-change delta payload is smaller than the full result and the serialized subsequent delta response is smaller than the first full-response envelope.
 - no wall-clock latency or percentage speed-up claim is made because P1A has not added a wall-clock benchmark.
 - P0A `tree_reads: 28 -> 0` is retained as separate P0A evidence and is not presented as P1A delta evidence.
 
 ### Code-head verification checkpoint
 
-Implementation head before this tracking-only closure commit:
+Final implementation head before this tracking-only evidence commit:
 
-- code head: `5dad0f9cc378acf6954658806ecf5169bd1c05a2`
-- code tree: `fdefc52512e603c19d05e1f32f747ab99e1d94b6`
-- exact-head CI #81 / run `34502284345`: PASS
-- exact-head CodeQL #81 / run `34502284367`: PASS
-- exact-head Supply Chain #81 / run `34502284311`: PASS
+- code head: `0cec4906f8d4e3e4596cdccfc51f7f0b5a476955`
+- code tree: `7996745280a7fb2717794de52e3b373fa7ff81fd`
+- exact-head CI #85 / run `34554344677`: PASS.
+- exact-head CodeQL #85 / run `34554344739`: PASS.
+- exact-head Supply Chain #85 / run `34554344674`: PASS.
 - Windows x64 `Core and Windows unit tests`: PASS.
-- Windows x64 E2E contract, seeded-failure, redaction, citation, refusal-guard, fixture compile, binary-size, profile-isolation, and cleanup steps: PASS.
+- Windows x64 example tests: PASS.
+- Windows x64 binary command tests: PASS.
+- Windows x64 FFI integration: PASS.
+- Windows x64 release binary: PASS.
+- Windows E2E contract gate, seeded-failure gate, capture redaction, citation gate, refusal guard, fixture compile, binary-size, profile isolation, and cleanup/post-job steps: PASS.
 
-The preceding CI failure exposed a latent Windows live-test foreground race, not a P1A production-path regression. Both strict-headless foreground-invariant tests now hold the existing shared `on_screen_stage()` guard while measuring before/refusal/after. Assertions, production policy, timeouts, and retry behavior were not weakened.
+The final Windows live-menu parity failure was traced to a fixture readiness race: the fixture previously announced menu readiness before Windows had actually entered the nested menu loop, allowing sequential detectors to observe different live snapshots. The fixture now emits menu `UP` / `DOWN` from `WM_ENTERMENULOOP` / `WM_EXITMENULOOP`. Production menu detection semantics, assertions, retry behavior, and timeout contracts were not weakened or inflated.
 
 This tracking update changes the feature HEAD. CI, CodeQL, and Supply Chain must therefore PASS again on the resulting exact docs-inclusive HEAD before PR creation or merge.
 
-P1B/P1C remain PLANNED until P1A is closed.
+P1B/P1C/P2 remain PLANNED until P1A is merged and exact post-merge closure is fully verified.
