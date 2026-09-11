@@ -396,3 +396,7 @@ fn view_error(kind: &str, message: impl AsRef<str>) -> AppError {
 #[cfg(test)]
 #[path = "view_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "view_invalidation_tests.rs"]
+mod invalidation_tests;
