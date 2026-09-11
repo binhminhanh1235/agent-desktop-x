@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    AppInfo, ProcessId, SignalCompleteness, WindowInfo, WindowState,
-};
+use crate::{AppInfo, ProcessId, SignalCompleteness, WindowInfo, WindowState};
 
 fn app(name: &str, pid: u32, generation: &str) -> AppInfo {
     AppInfo {
@@ -70,11 +68,17 @@ fn process_replacement_and_window_recreation_are_semantic_and_handle_free() {
 #[test]
 fn unrelated_app_change_stays_scoped() {
     let before = baseline(
-        vec![app("Editor", 41, "editor-a"), app("Browser", 50, "browser-a")],
+        vec![
+            app("Editor", 41, "editor-a"),
+            app("Browser", 50, "browser-a"),
+        ],
         vec![window("Editor", "Document", 41, "editor-a", "w1")],
     );
     let after = baseline(
-        vec![app("Editor", 41, "editor-a"), app("Browser", 51, "browser-b")],
+        vec![
+            app("Editor", 41, "editor-a"),
+            app("Browser", 51, "browser-b"),
+        ],
         vec![window("Editor", "Document", 41, "editor-a", "w1")],
     );
 
