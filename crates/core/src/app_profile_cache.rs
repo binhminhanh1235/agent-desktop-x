@@ -1,4 +1,11 @@
-use crate::{LocatorQuery, RefEntry, SnapshotSurface, WindowInfo, refs::RefPath, search_text};
+use crate::{
+    LocatorQuery, RefEntry, SnapshotSurface, WindowInfo, refs::RefPath,
+    runtime_events::{
+        RuntimeEvent, RuntimeEventCursor, RuntimeProcessScope, RuntimeWindowScope,
+        runtime_event_cursor, runtime_events_since,
+    },
+    search_text,
+};
 use std::{
     collections::{HashMap, VecDeque},
     sync::{Mutex, OnceLock},
@@ -39,6 +46,7 @@ struct LiveGeneration {
 struct LiveRefCacheEntry {
     generation: LiveGeneration,
     entry: RefEntry,
+    reusable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -48,10 +56,30 @@ pub(crate) enum CacheLookup {
     Invalidated,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct CacheInvalidationMetrics {
+    events_applied: u64,
+    live_refs_invalidated: u64,
+    unrelated_entries_retained: u64,
+    overflow_resets: u64,
+}
+
 struct CacheState {
     entries: HashMap<AppProfileKey, AppProfile>,
     order: VecDeque<AppProfileKey>,
+    event_cursor: RuntimeEventCursor,
+    invalidation: CacheInvalidationMetrics,
+}
+
+impl Default for CacheState {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::new(),
+            order: VecDeque::new(),
+            event_cursor: runtime_event_cursor(),
+            invalidation: CacheInvalidationMetrics::default(),
+        }
+    }
 }
 
 static CACHE: OnceLock<Mutex<CacheState>> = OnceLock::new();
@@ -95,6 +123,7 @@ pub(crate) fn lookup(key: &AppProfileKey) -> Result<CacheLookup, crate::AppError
     let mut state = cache()
         .lock()
         .map_err(|_| crate::AppError::Internal("AppProfile cache lock is poisoned".into()))?;
+    apply_runtime_events(&mut state);
     let Some(profile) = state.entries.get(key).cloned() else {
         return Ok(CacheLookup::Miss);
     };
@@ -115,6 +144,7 @@ pub(crate) fn store(key: AppProfileKey, profile: AppProfile) -> Result<bool, cra
     let mut state = cache()
         .lock()
         .map_err(|_| crate::AppError::Internal("AppProfile cache lock is poisoned".into()))?;
+    apply_runtime_events(&mut state);
     state.order.retain(|candidate| candidate != &key);
     state.order.push_back(key.clone());
     state.entries.insert(key, profile);
@@ -131,9 +161,66 @@ pub(crate) fn invalidate(key: &AppProfileKey) -> Result<(), crate::AppError> {
     let mut state = cache()
         .lock()
         .map_err(|_| crate::AppError::Internal("AppProfile cache lock is poisoned".into()))?;
+    apply_runtime_events(&mut state);
     state.entries.remove(key);
     state.order.retain(|candidate| candidate != key);
     Ok(())
+}
+
+fn apply_runtime_events(state: &mut CacheState) {
+    let batch = runtime_events_since(state.event_cursor);
+    state.event_cursor = batch.cursor;
+    if batch.overflowed {
+        let invalidated = state
+            .entries
+            .values_mut()
+            .filter(|profile| profile.invalidate_live())
+            .count() as u64;
+        state.invalidation.live_refs_invalidated = state
+            .invalidation
+            .live_refs_invalidated
+            .saturating_add(invalidated);
+        state.invalidation.overflow_resets = state.invalidation.overflow_resets.saturating_add(1);
+    }
+    for event in batch.events {
+        let mut invalidated = 0_u64;
+        let mut retained = 0_u64;
+        for profile in state.entries.values_mut() {
+            if event_invalidates_profile(&event, profile) {
+                if profile.invalidate_live() {
+                    invalidated = invalidated.saturating_add(1);
+                }
+            } else {
+                retained = retained.saturating_add(1);
+            }
+        }
+        state.invalidation.events_applied = state.invalidation.events_applied.saturating_add(1);
+        state.invalidation.live_refs_invalidated = state
+            .invalidation
+            .live_refs_invalidated
+            .saturating_add(invalidated);
+        state.invalidation.unrelated_entries_retained = state
+            .invalidation
+            .unrelated_entries_retained
+            .saturating_add(retained);
+    }
+}
+
+fn event_invalidates_profile(event: &RuntimeEvent, profile: &AppProfile) -> bool {
+    match event {
+        RuntimeEvent::ProcessStarted { current } => profile.app_matches(current.app()),
+        RuntimeEvent::ProcessReplaced { previous, .. }
+        | RuntimeEvent::ProcessExited { previous } => profile.live_matches_process(previous),
+        RuntimeEvent::WindowCreated { current } => profile.semantic_window_matches(current),
+        RuntimeEvent::WindowDestroyed { previous }
+        | RuntimeEvent::WindowGenerationChanged { previous, .. } => {
+            profile.live_matches_window(previous)
+        }
+        RuntimeEvent::AccessibilityTreeInvalidated { process } => {
+            profile.live_matches_process(process)
+        }
+        RuntimeEvent::ProviderReset => true,
+    }
 }
 
 impl AppProfile {
@@ -159,6 +246,7 @@ impl AppProfile {
                     window_id: window.id.clone(),
                 },
                 entry: entry.clone(),
+                reusable: true,
             },
         })
     }
@@ -171,7 +259,8 @@ impl AppProfile {
         let Some(process_instance) = window.process_instance.as_deref() else {
             return false;
         };
-        self.live.generation.pid == window.pid.get()
+        self.live.reusable
+            && self.live.generation.pid == window.pid.get()
             && self.live.generation.process_instance == process_instance
             && self.live.generation.window_id == window.id
     }
@@ -202,6 +291,33 @@ impl AppProfile {
             .map(<[String]>::to_vec)
             .unwrap_or_else(|| self.selector.display_path().to_vec());
         Self::from_match(window, self.window.surface, entry, &display_path)
+    }
+
+    fn app_matches(&self, app: &str) -> bool {
+        self.window.app == search_text::normalize(app)
+    }
+
+    fn semantic_window_matches(&self, scope: &RuntimeWindowScope) -> bool {
+        self.app_matches(scope.process().app())
+            && self.window.title == search_text::normalize(scope.title())
+    }
+
+    fn live_matches_process(&self, scope: &RuntimeProcessScope) -> bool {
+        self.app_matches(scope.app())
+            && self.live.generation.pid == scope.pid().get()
+            && self.live.generation.process_instance == scope.process_instance()
+    }
+
+    fn live_matches_window(&self, scope: &RuntimeWindowScope) -> bool {
+        self.semantic_window_matches(scope) && self.live_matches_process(scope.process())
+    }
+
+    fn invalidate_live(&mut self) -> bool {
+        if !self.live.reusable {
+            return false;
+        }
+        self.live.reusable = false;
+        true
     }
 
     fn validate(&self) -> bool {
@@ -241,7 +357,24 @@ pub(crate) fn clear_for_tests() {
     if let Ok(mut state) = cache().lock() {
         state.entries.clear();
         state.order.clear();
+        state.event_cursor = runtime_event_cursor();
+        state.invalidation = CacheInvalidationMetrics::default();
     }
+}
+
+#[cfg(test)]
+pub(crate) fn invalidation_metrics_for_tests() -> (u64, u64, u64, u64) {
+    cache()
+        .lock()
+        .map(|state| {
+            (
+                state.invalidation.events_applied,
+                state.invalidation.live_refs_invalidated,
+                state.invalidation.unrelated_entries_retained,
+                state.invalidation.overflow_resets,
+            )
+        })
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
