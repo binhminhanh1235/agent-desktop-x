@@ -161,7 +161,10 @@ impl ViewStore {
         if view.invalidated {
             return Err(view_error(
                 "VIEW_STALE",
-                format!("view '{}' was invalidated by a runtime lifecycle event", raw_id),
+                format!(
+                    "view '{}' was invalidated by a runtime lifecycle event",
+                    raw_id
+                ),
             ));
         }
         Ok(view)
@@ -342,9 +345,7 @@ fn event_invalidates_scope(event: &RuntimeEvent, scope: &ObservationScope) -> bo
         | RuntimeEvent::ProcessExited { previous } => Some(previous.app()),
         RuntimeEvent::WindowCreated { current } => Some(current.process().app()),
         RuntimeEvent::WindowDestroyed { previous }
-        | RuntimeEvent::WindowGenerationChanged { previous, .. } => {
-            Some(previous.process().app())
-        }
+        | RuntimeEvent::WindowGenerationChanged { previous, .. } => Some(previous.process().app()),
         RuntimeEvent::AccessibilityTreeInvalidated { process } => Some(process.app()),
         RuntimeEvent::ProviderReset => None,
     };
