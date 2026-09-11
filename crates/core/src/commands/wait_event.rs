@@ -47,9 +47,6 @@ pub(crate) fn wait_for_event(
         None => (None, None),
     };
     let mut seen = baseline.clone();
-    // Runtime invalidation uses adjacent observations, not wait's fixed/union
-    // match baseline. That prevents an unrelated disappearance from being
-    // republished every poll while preserving the existing wait semantics.
     let mut last_runtime_observation = baseline.clone();
 
     loop {
