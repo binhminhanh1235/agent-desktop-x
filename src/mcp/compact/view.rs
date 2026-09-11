@@ -281,8 +281,7 @@ fn canonical_windows(result: &Value) -> Result<BTreeMap<String, Value>, AppError
         })?;
         let app = required_string(object.get("app_name"), "app_name")?;
         let title = required_string(object.get("title"), "title")?;
-        let process_instance =
-            required_string(object.get("process_instance"), "process_instance")?;
+        let process_instance = required_string(object.get("process_instance"), "process_instance")?;
         let pid = object
             .get("pid")
             .and_then(Value::as_u64)
