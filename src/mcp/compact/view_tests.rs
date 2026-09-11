@@ -430,12 +430,13 @@ fn matching_runtime_event_makes_view_stale_without_touching_unrelated_scope() {
         "proc-generation-2",
     )
     .expect("bounded scope");
-    store.apply_event(&agent_desktop_core::runtime_events::RuntimeEvent::ProcessReplaced {
-        previous,
-        current,
-    });
+    store.apply_event(
+        &agent_desktop_core::runtime_events::RuntimeEvent::ProcessReplaced { previous, current },
+    );
 
-    let error = store.live(&editor.id.0, now).expect_err("editor view must be stale");
+    let error = store
+        .live(&editor.id.0, now)
+        .expect_err("editor view must be stale");
     assert!(error.to_string().contains("VIEW_STALE"));
     assert!(store.live(&browser.id.0, now).is_ok());
     assert_eq!(store.invalidation.views_invalidated, 1);
@@ -451,12 +452,16 @@ fn duplicate_view_invalidation_is_idempotent() {
         "proc-generation-1",
     )
     .expect("bounded scope");
-    let event = agent_desktop_core::runtime_events::RuntimeEvent::AccessibilityTreeInvalidated {
-        process,
-    };
+    let event =
+        agent_desktop_core::runtime_events::RuntimeEvent::AccessibilityTreeInvalidated { process };
     store.apply_event(&event);
     store.apply_event(&event);
-    assert!(store.entries.get(&view.id).is_some_and(|view| view.invalidated));
+    assert!(
+        store
+            .entries
+            .get(&view.id)
+            .is_some_and(|view| view.invalidated)
+    );
     assert_eq!(store.invalidation.events_applied, 2);
     assert_eq!(store.invalidation.views_invalidated, 1);
 }
@@ -510,9 +515,9 @@ fn expiry_keeps_precedence_after_event_invalidation() {
         "proc-generation-1",
     )
     .expect("bounded scope");
-    store.apply_event(&agent_desktop_core::runtime_events::RuntimeEvent::ProcessExited {
-        previous: process,
-    });
+    store.apply_event(
+        &agent_desktop_core::runtime_events::RuntimeEvent::ProcessExited { previous: process },
+    );
     let error = store
         .live(&view.id.0, start + Duration::from_millis(2))
         .expect_err("expired view");
