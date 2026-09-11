@@ -17,7 +17,11 @@ pub struct RuntimeProcessScope {
 }
 
 impl RuntimeProcessScope {
-    pub fn new(app: impl Into<String>, pid: ProcessId, process_instance: impl Into<String>) -> Option<Self> {
+    pub fn new(
+        app: impl Into<String>,
+        pid: ProcessId,
+        process_instance: impl Into<String>,
+    ) -> Option<Self> {
         let app = app.into();
         let process_instance = process_instance.into();
         if !bounded_text(&app) || !bounded_text(&process_instance) || pid.get() == 0 {
@@ -180,8 +184,8 @@ impl RuntimeEventBus {
     fn read_since(&self, cursor: RuntimeEventCursor) -> RuntimeEventBatch {
         let tail = self.cursor();
         let oldest = self.retained.front().map(|event| event.sequence);
-        let overflowed = cursor.0 > tail.0
-            || oldest.is_some_and(|oldest| cursor.0.saturating_add(1) < oldest);
+        let overflowed =
+            cursor.0 > tail.0 || oldest.is_some_and(|oldest| cursor.0.saturating_add(1) < oldest);
         let events = self
             .retained
             .iter()
@@ -435,9 +439,10 @@ fn app_runtime_identity(app: &AppInfo) -> Option<(u32, &str)> {
 }
 
 fn window_runtime_identity(window: &WindowInfo) -> Option<(u32, &str, &str)> {
-    window.process_instance.as_deref().map(|instance| {
-        (window.pid.get(), instance, window.id.as_str())
-    })
+    window
+        .process_instance
+        .as_deref()
+        .map(|instance| (window.pid.get(), instance, window.id.as_str()))
 }
 
 fn process_scope(app: &AppInfo) -> Option<RuntimeProcessScope> {
