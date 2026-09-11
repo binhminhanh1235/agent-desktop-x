@@ -1,6 +1,9 @@
 use super::*;
 use agent_desktop_core::ProcessId;
-use std::{collections::BTreeMap, time::{Duration, Instant}};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, Instant},
+};
 
 fn scoped_store(app: &str) -> (ViewStore, StoredView) {
     let mut store = ViewStore::new(8, Duration::from_secs(30));
