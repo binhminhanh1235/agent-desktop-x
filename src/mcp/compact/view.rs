@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use agent_desktop_core::AppError;
+use agent_desktop_core::{AppError, Deadline, PlatformAdapter, WindowFilter};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -12,8 +12,6 @@ const VIEW_CAPACITY: usize = 64;
 const VIEW_TTL: Duration = Duration::from_secs(30);
 const MAX_VIEW_ENTRIES: usize = 256;
 const MAX_VIEW_STATE_BYTES: usize = 128 * 1024;
-const MAX_DELTA_ENTRIES: usize = 256;
-const MAX_DELTA_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
@@ -35,7 +33,6 @@ struct ObservationScope {
 struct StoredView {
     id: ViewId,
     generation: u64,
-    created_at: Instant,
     expires_at: Instant,
     scope: ObservationScope,
     state: BTreeMap<String, Value>,
@@ -69,26 +66,31 @@ impl ViewStore {
         }
     }
 
-    fn previous(
-        &mut self,
-        raw_id: &str,
-        scope: &ObservationScope,
-        now: Instant,
-    ) -> Result<StoredView, AppError> {
+    fn live(&mut self, raw_id: &str, now: Instant) -> Result<StoredView, AppError> {
         let id = parse_view_id(raw_id)?;
         let Some(view) = self.entries.get(&id).cloned() else {
             return Err(view_error(
                 "VIEW_UNKNOWN",
-                format!("previous view '{}' is unknown in this process", raw_id),
+                format!("view '{}' is unknown in this process", raw_id),
             ));
         };
         if now >= view.expires_at {
             self.remove(&id);
             return Err(view_error(
                 "VIEW_EXPIRED",
-                format!("previous view '{}' has expired", raw_id),
+                format!("view '{}' has expired", raw_id),
             ));
         }
+        Ok(view)
+    }
+
+    fn previous(
+        &mut self,
+        raw_id: &str,
+        scope: &ObservationScope,
+        now: Instant,
+    ) -> Result<StoredView, AppError> {
+        let view = self.live(raw_id, now)?;
         if &view.scope != scope {
             return Err(view_error(
                 "VIEW_SCOPE_MISMATCH",
@@ -118,7 +120,6 @@ impl ViewStore {
         let view = StoredView {
             id: id.clone(),
             generation,
-            created_at: now,
             expires_at: now + self.ttl,
             scope,
             state,
@@ -160,11 +161,14 @@ pub(super) fn record_observation(
         .transpose()?;
     let delta = previous
         .as_ref()
-        .map(|prior| diff(&prior.state, &current))
+        .map(|prior| super::view_delta::diff(&prior.state, &current))
         .transpose()?;
     let parent = previous.as_ref().map(|prior| prior.id.clone());
     let view = store.insert(scope.clone(), current.clone(), parent, now);
-    let delta_entries = delta.as_ref().map(delta_entry_count).unwrap_or(0);
+    let delta_entries = delta
+        .as_ref()
+        .map(super::view_delta::entry_count)
+        .unwrap_or(0);
     let delta_bytes = delta.as_ref().map(encoded_len).transpose()?.unwrap_or(0);
 
     let metadata = json!({
@@ -185,8 +189,47 @@ pub(super) fn record_observation(
             "harness_calls_this_observation": 1,
         }
     });
-    let _lifetime = (view.created_at, view.expires_at);
     Ok(ViewObservation { metadata, delta })
+}
+
+pub(super) fn validate_expected_view(
+    raw_id: &str,
+    adapter: &dyn PlatformAdapter,
+    deadline: Deadline,
+) -> Result<Value, AppError> {
+    let view = {
+        let mut store = global_store();
+        store.live(raw_id, Instant::now())?
+    };
+    if view.scope.command != "list-windows" {
+        return Err(view_error(
+            "VIEW_UNSUPPORTED",
+            "expected view does not belong to a freshness-checkable P1A surface",
+        ));
+    }
+    let windows = adapter.list_windows(
+        &WindowFilter {
+            focused_only: false,
+            app: view.scope.app.clone(),
+        },
+        deadline,
+    )?;
+    let current = canonical_windows(&serde_json::to_value(windows)?)?;
+    if current != view.state {
+        return Err(view_error(
+            "VIEW_STALE",
+            "desktop state no longer matches the expected observation view",
+        ));
+    }
+    Ok(json!({
+        "state": "passed",
+        "expected_view_id": view.id.0,
+        "generation": view.generation,
+        "scope": {
+            "command": view.scope.command,
+            "app": view.scope.app,
+        }
+    }))
 }
 
 fn global_store() -> MutexGuard<'static, ViewStore> {
@@ -238,7 +281,8 @@ fn canonical_windows(result: &Value) -> Result<BTreeMap<String, Value>, AppError
         })?;
         let app = required_string(object.get("app_name"), "app_name")?;
         let title = required_string(object.get("title"), "title")?;
-        let process_instance = required_string(object.get("process_instance"), "process_instance")?;
+        let process_instance =
+            required_string(object.get("process_instance"), "process_instance")?;
         let pid = object
             .get("pid")
             .and_then(Value::as_u64)
@@ -308,57 +352,6 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
     hash
 }
 
-fn diff(
-    previous: &BTreeMap<String, Value>,
-    current: &BTreeMap<String, Value>,
-) -> Result<Value, AppError> {
-    let added = current
-        .iter()
-        .filter(|(key, _)| !previous.contains_key(*key))
-        .map(|(key, state)| json!({ "key": key, "state": state }))
-        .collect::<Vec<_>>();
-    let removed = previous
-        .keys()
-        .filter(|key| !current.contains_key(*key))
-        .map(|key| json!({ "key": key }))
-        .collect::<Vec<_>>();
-    let changed = current
-        .iter()
-        .filter_map(|(key, state)| {
-            previous
-                .get(key)
-                .filter(|previous_state| *previous_state != state)
-                .map(|_| json!({ "key": key, "state": state }))
-        })
-        .collect::<Vec<_>>();
-    let count = added.len() + removed.len() + changed.len();
-    if count > MAX_DELTA_ENTRIES {
-        return Err(view_error(
-            "VIEW_DELTA_LIMIT",
-            format!("state delta exceeds {MAX_DELTA_ENTRIES} entries"),
-        ));
-    }
-    let delta = json!({
-        "added": added,
-        "removed": removed,
-        "changed": changed,
-    });
-    if encoded_len(&delta)? > MAX_DELTA_BYTES {
-        return Err(view_error(
-            "VIEW_DELTA_LIMIT",
-            format!("state delta exceeds {MAX_DELTA_BYTES} bytes"),
-        ));
-    }
-    Ok(delta)
-}
-
-fn delta_entry_count(delta: &Value) -> usize {
-    ["added", "removed", "changed"]
-        .iter()
-        .map(|name| delta[*name].as_array().map(Vec::len).unwrap_or(0))
-        .sum()
-}
-
 fn encoded_len(value: &Value) -> Result<usize, AppError> {
     Ok(serde_json::to_vec(value)?.len())
 }
@@ -370,7 +363,7 @@ fn parse_view_id(raw: &str) -> Result<ViewId, AppError> {
     if !valid {
         return Err(view_error(
             "VIEW_ID_INVALID",
-            "previous_view_id is not a bounded P1A view identifier",
+            "view id is not a bounded P1A view identifier",
         ));
     }
     Ok(ViewId(raw.to_string()))

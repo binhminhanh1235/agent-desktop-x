@@ -73,6 +73,13 @@ pub(super) fn execute_schema(include_workflow: bool) -> Value {
             "maxItems": MAX_STEPS,
             "items": step
         },
+        "expected_view_id": {
+            "type": "string",
+            "minLength": 19,
+            "maxLength": 19,
+            "pattern": "^v1-[0-9a-fA-F]{16}$",
+            "description": "Optional P1A observation precondition. The view is re-observed before dispatch and never replaces semantic preflight or live target resolution."
+        },
         "stop_on_error": {
             "type": "boolean",
             "default": true
