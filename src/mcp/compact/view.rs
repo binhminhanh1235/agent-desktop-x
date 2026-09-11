@@ -378,10 +378,7 @@ fn parse_view_id(raw: &str) -> Result<ViewId, AppError> {
         && raw.starts_with("v1-")
         && raw[3..].bytes().all(|byte| byte.is_ascii_hexdigit());
     if !valid {
-        return Err(view_error(
-            "VIEW_ID_INVALID",
-            "view id is not a bounded P1A view identifier",
-        ));
+        return Err(view_error("VIEW_ID_INVALID", "view id is not a bounded P1A view identifier"));
     }
     Ok(ViewId(raw.to_string()))
 }
