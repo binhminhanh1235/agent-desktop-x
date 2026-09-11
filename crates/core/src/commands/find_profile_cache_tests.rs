@@ -7,9 +7,7 @@ use crate::{
     app_profile_cache::{self, CacheLookup},
     context::CommandContext,
     refs_test_support::HomeGuard,
-    runtime_events::{
-        RuntimeEvent, RuntimeProcessScope, publish_runtime_event,
-    },
+    runtime_events::{RuntimeEvent, RuntimeProcessScope, publish_runtime_event},
 };
 
 #[test]
