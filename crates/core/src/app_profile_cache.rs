@@ -1,5 +1,6 @@
 use crate::{
-    LocatorQuery, RefEntry, SnapshotSurface, WindowInfo, refs::RefPath,
+    LocatorQuery, RefEntry, SnapshotSurface, WindowInfo,
+    refs::RefPath,
     runtime_events::{
         RuntimeEvent, RuntimeEventCursor, RuntimeProcessScope, RuntimeWindowScope,
         runtime_event_cursor, runtime_events_since,
@@ -171,11 +172,12 @@ fn apply_runtime_events(state: &mut CacheState) {
     let batch = runtime_events_since(state.event_cursor);
     state.event_cursor = batch.cursor;
     if batch.overflowed {
-        let invalidated = state
-            .entries
-            .values_mut()
-            .filter(|profile| profile.invalidate_live())
-            .count() as u64;
+        let mut invalidated = 0_u64;
+        for profile in state.entries.values_mut() {
+            if profile.invalidate_live() {
+                invalidated = invalidated.saturating_add(1);
+            }
+        }
         state.invalidation.live_refs_invalidated = state
             .invalidation
             .live_refs_invalidated
