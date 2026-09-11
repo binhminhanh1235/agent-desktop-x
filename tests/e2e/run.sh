@@ -128,6 +128,27 @@ check_fixture_contention || { finish; exit 1; }
 # shellcheck source=tests/e2e/scenarios/reliability.sh
 source "$here/scenarios/reliability.sh"
 check_fixture_contention || { finish; exit 1; }
+
+note "P1B persistent MCP lifecycle refresh"
+if python3 "$here/p1b_lifecycle_refresh.py" \
+    --bin "$raw_bin" \
+    --fixture "$fixture_app" \
+    --app "$app" \
+    --cycles 10; then
+    if record_fixture_process; then
+        okmsg "persistent MCP tracks 10 fixture relaunches without stale NSWorkspace PID state"
+    else
+        badmsg "P1B lifecycle probe passed but fixture ownership could not be reacquired"
+        finish
+        exit 1
+    fi
+else
+    badmsg "persistent MCP lifecycle refresh failed across fixture relaunch"
+    finish
+    exit 1
+fi
+check_fixture_contention || { finish; exit 1; }
+
 # shellcheck source=tests/e2e/scenarios/surfaces.sh
 source "$here/scenarios/surfaces.sh"
 check_fixture_contention || { finish; exit 1; }

@@ -1,4 +1,5 @@
 #import <AppKit/AppKit.h>
+#import <CoreFoundation/CoreFoundation.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -16,6 +17,21 @@ typedef struct {
     uint8_t *bytes;
     size_t length;
 } AgentDesktopBytesResult;
+
+// NSWorkspace delivers launch/termination changes through the run loop. Long-lived
+// CLI/MCP processes do not otherwise run an AppKit event loop, so a shared
+// workspace can retain a terminated application's PID across a relaunch. Drain
+// only sources that are already ready; the bound prevents unrelated source churn
+// from turning an inventory read into an unbounded wait.
+static void agent_desktop_refresh_workspace_state(void) {
+    const uint32_t maxHandledSources = 32;
+    for (uint32_t handled = 0; handled < maxHandledSources; handled += 1) {
+        SInt32 result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.0, true);
+        if (result != kCFRunLoopRunHandledSource) {
+            break;
+        }
+    }
+}
 
 // Reports whether a running application has finished starting up.
 // -1 no such process, 0 still starting, 1 finished.
@@ -99,6 +115,7 @@ AgentDesktopBytesResult agent_desktop_copy_workspace_snapshot_json(void) {
     @try {
         @autoreleasepool {
             NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+            agent_desktop_refresh_workspace_state();
             NSArray<NSRunningApplication *> *running = workspace.runningApplications;
             if (running == nil || running.count > 8192) {
                 result.status = 1;
