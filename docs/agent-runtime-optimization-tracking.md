@@ -22,7 +22,7 @@ GitHub Issues are disabled for this repository, so this file is the canonical ta
 | ARO-P0B | P0 | Compound Execution Engine | P0A foundation | DONE / VERIFIED | manual acceptance 12/12 PASS; feature `9f0ce7c0850e941fc33988d495410a4ff86f785d` / tree `03913a552af5ec8bfcb99f6922b1646fc1ab54f4`; PR #12; exact-head CI #58 / CodeQL #58 / Supply Chain #58 PASS; merge `e2356cb984695c21f992619bd918d850bbecdd7d`; post-merge CI #59 / CodeQL #59 / Supply Chain #59 / Release #14 PASS |
 | ARO-P0C | P0 | Compact Agent API: observe/execute/run | P0A, P0B contracts | DONE / VERIFIED | PR #13 compact API; PR #14 runtime-bound hardening; PR #15 Windows file-lock repair; final code baseline `8e9f30a8dc21beac9c64d2a6651d2c0733afd3ac`; CI/CodeQL/Supply/Release #73 PASS |
 | ARO-P1A | P1 | View Handles + State Delta | P0A, P0C | DONE / VERIFIED | final branch `b874e4fafad4b2312ec3a87a6ab0ed4b37cdfe8e` / tree `e0a571dbf853132760333e9bf2056a1ceb415a2f`; exact-head CI/CodeQL/Supply Chain #86 PASS; PR #16; merge `8c7f4bcc4c46c956f06b101fdb329562d3ddc8c7`; post-merge CI/CodeQL/Supply Chain #88 + Release #20 PASS |
-| ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | IN PROGRESS | branch `feat/agent-runtime-optimization-p1b`; prompt `docs/prompts/agent-runtime-optimization-p1b.md` |
+| ARO-P1B | P1 | Event Bus + Cache Invalidation | P0A | DONE / VERIFIED | PR #17; feature `ee7ff621e264e8d0ed9f293cc944cae97999c073` / tree `744a5916a8647623308c6a6196a8db9fbb0ac23b`; exact-head CI/CodeQL/Supply Chain #113 PASS; merge `fe36cadfeb9b8df1355e8efd2f125dffb60c9806`; post-merge CI/CodeQL/Supply Chain #114 + Release #22 PASS |
 | ARO-P1C | P1 | Verification + Recovery + Safety | P0A, P0B | PLANNED | |
 | ARO-P2A | P2 | Capability Discovery + Router | P0C, P1C | PLANNED | |
 | ARO-P2B | P2 | Learned Actions + Record-to-Skill | P0B, P1C | PLANNED | |
@@ -358,4 +358,71 @@ The final Windows live-menu parity failure was traced to a fixture readiness rac
 
 This closure tracking commit changes `main`; the resulting final-main SHA must pass CI, CodeQL, Supply Chain, and Release before P1A is called finally closed outside this document.
 
-P1B/P1C/P2 remain PLANNED until that exact final-main closure verification passes.
+P1A closure verification passed. P1B is recorded below; P1C/P2 remain PLANNED.
+
+## ARO-P1B - Event Bus + Cache Invalidation
+
+Status: DONE / VERIFIED
+
+Implementation prompt: `docs/prompts/agent-runtime-optimization-p1b.md`
+
+Verified boundary and implementation:
+
+- the process-local typed runtime invalidation bus retains at most 128 events, uses a monotonic cursor, and deterministically drops the oldest retained event on overflow;
+- event payloads use bounded semantic process/window scopes and never persist raw/native window handles as semantic identity;
+- adjacent normalized `SignalBaseline` observations classify process replacement, window lifecycle/generation, accessibility-tree invalidation, and provider reset without exposing platform-native Win32/macOS/Linux types to core;
+- incomplete or unsupported observations do not fabricate realtime events; unsafe or oversized semantic metadata degrades conservatively to `ProviderReset`;
+- P0A AppProfile live refs are generation-aware and event-invalidated while semantic selector knowledge is retained for semantic re-resolution;
+- overflow or missed history invalidates live reuse conservatively, so dropped events cannot permit stale live-ref reuse;
+- P1A ViewStore consumes the same event stream to mark matching views stale; unrelated scoped views remain live, duplicate invalidations are idempotent, expiry keeps precedence, and overflow stales retained views conservatively;
+- `expected_view_id` remains observation evidence only: it still performs a fresh provider `list_windows` read before mutation, so an event can stale a view but can never establish freshness or authorization;
+- no background listener/thread resources or teardown-sensitive native registrations were added; the bus is bounded synchronized process-local state;
+- P1C recovery/confidence, P2 routing/jobs, and vision fallback were not implemented.
+
+### Acceptance mapping
+
+- [x] process replacement invalidates affected P0A live refs.
+- [x] window generation change invalidates affected P0A live refs.
+- [x] semantic selector knowledge survives live-ref invalidation and remains available for re-resolution.
+- [x] unrelated application scopes retain reusable live refs/views.
+- [x] matching runtime events make P1A views stale without bypassing fresh provider re-observation.
+- [x] duplicate and reordered invalidations are safe and idempotent.
+- [x] bounded queue overflow is deterministic and forces conservative consumer invalidation.
+- [x] queue and invalidation metrics expose capacity/depth/max-depth/published/dropped and affected/retained/reset counts.
+- [x] raw/native window ids are excluded from retained event semantic identity and focused tests assert native ids do not appear in event debug output.
+- [x] incomplete or unsupported event sources degrade safely without fabricated realtime claims.
+- [x] existing P0A/P0B/P0C/P1A behavior remains green across full CI.
+- [x] Windows x64 and Windows ARM64 full lanes PASS.
+- [x] exact-head CI/CodeQL/Supply Chain PASS; guarded merge; post-merge CI/CodeQL/Supply Chain/Release PASS.
+
+### Optimization and safety evidence
+
+- runtime event retention capacity: 128 events.
+- overflow policy: deterministic drop-oldest with monotonic cursor and dropped-event accounting.
+- consumer overflow acceptance proves dropped history makes an existing live AppProfile ref non-reusable while preserving its stable identifier and semantic path recipe.
+- scoped invalidation tests prove one affected view can become stale while an unrelated scoped view remains live.
+- duplicate invalidation tests prove repeated events do not inflate affected-object counts after the first invalidation.
+- P1A freshness remains provider-observed before mutation; event delivery is never used as proof that state is current.
+- no wall-clock latency or percentage speed-up is claimed because P1B did not introduce a wall-clock benchmark.
+
+### Final verification checkpoint
+
+- final feature head: `ee7ff621e264e8d0ed9f293cc944cae97999c073`
+- final feature tree: `744a5916a8647623308c6a6196a8db9fbb0ac23b`
+- exact-head CI #113 / run `34573683593`: PASS.
+- exact-head CodeQL #113 / run `34573683655`: PASS.
+- exact-head Supply Chain #113 / run `34573683638`: PASS.
+- PR: #17 `feat(aro): add P1B event bus and cache invalidation`.
+- guarded squash merge expected head: `ee7ff621e264e8d0ed9f293cc944cae97999c073`.
+- merge commit: `fe36cadfeb9b8df1355e8efd2f125dffb60c9806`.
+- merge tree: `744a5916a8647623308c6a6196a8db9fbb0ac23b`.
+- post-merge CI #114 / run `34578035726`: PASS.
+- post-merge CodeQL #114 / run `34578035741`: PASS.
+- post-merge Supply Chain #114 / run `34578035732`: PASS.
+- post-merge Release #22 / run `34578035750`: PASS.
+- post-merge Windows x64 full lane: PASS.
+- post-merge Windows ARM64 full lane: PASS.
+
+This closure tracking commit changes `main`; the resulting exact final-main SHA must pass CI, CodeQL, Supply Chain, and Release before P1B is called finally closed outside this document.
+
+P1C/P2 remain PLANNED.
