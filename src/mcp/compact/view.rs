@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 
 #[path = "view_state.rs"]
 mod view_state;
-use view_state::{canonical_windows, encoded_len};
+use view_state::{canonical_windows, encoded_len, view_error};
 
 const VIEW_CAPACITY: usize = 64;
 const VIEW_TTL: Duration = Duration::from_secs(30);
@@ -378,16 +378,12 @@ fn parse_view_id(raw: &str) -> Result<ViewId, AppError> {
         && raw.starts_with("v1-")
         && raw[3..].bytes().all(|byte| byte.is_ascii_hexdigit());
     if !valid {
-        return Err(view_error("VIEW_ID_INVALID", "view id is not a bounded P1A view identifier"));
+        return Err(view_error(
+            "VIEW_ID_INVALID",
+            "view id is not a bounded P1A view identifier",
+        ));
     }
     Ok(ViewId(raw.to_string()))
-}
-
-fn view_error(kind: &str, message: impl AsRef<str>) -> AppError {
-    AppError::invalid_input_with_suggestion(
-        format!("{kind}: {}", message.as_ref()),
-        "Perform a fresh desktop.observe view request in the same compatible scope; views are short-lived observation evidence and never mutation authorization.",
-    )
 }
 
 #[cfg(test)]

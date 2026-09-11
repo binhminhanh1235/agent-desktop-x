@@ -1,4 +1,3 @@
-use super::view_error;
 use agent_desktop_core::AppError;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -99,4 +98,11 @@ fn fnv1a64(bytes: &[u8]) -> u64 {
 
 pub(super) fn encoded_len(value: &Value) -> Result<usize, AppError> {
     Ok(serde_json::to_vec(value)?.len())
+}
+
+pub(super) fn view_error(kind: &str, message: impl AsRef<str>) -> AppError {
+    AppError::invalid_input_with_suggestion(
+        format!("{kind}: {}", message.as_ref()),
+        "Perform a fresh desktop.observe view request in the same compatible scope; views are short-lived observation evidence and never mutation authorization.",
+    )
 }
