@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import time
+from typing import List, Optional, Tuple
 
 PROTOCOL_VERSION = "2025-11-25"
 RESTART_CYCLES = 10
@@ -43,7 +44,7 @@ class McpSession:
             raise RuntimeError(f"MCP process closed unexpectedly: {stderr}")
         return json.loads(line)
 
-    def call(self, method: str, params: dict | None = None) -> dict:
+    def call(self, method: str, params: Optional[dict] = None) -> dict:
         self.next_id += 1
         payload = {"jsonrpc": "2.0", "id": self.next_id, "method": method}
         if params is not None:
@@ -53,7 +54,7 @@ class McpSession:
             raise RuntimeError(f"MCP protocol error: {response['error']}")
         return response
 
-    def notify(self, method: str, params: dict | None = None) -> None:
+    def notify(self, method: str, params: Optional[dict] = None) -> None:
         payload = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             payload["params"] = params
@@ -76,7 +77,7 @@ class McpSession:
             self.proc.wait(timeout=5)
 
 
-def pids_for(app: str) -> list[int]:
+def pids_for(app: str) -> List[int]:
     result = subprocess.run(
         ["pgrep", "-x", app], capture_output=True, text=True, check=False
     )
@@ -136,7 +137,7 @@ def structured_success(result: dict, label: str) -> dict:
     return structured
 
 
-def observe_view(mcp: McpSession, app: str) -> tuple[str, int]:
+def observe_view(mcp: McpSession, app: str) -> Tuple[str, int]:
     structured = structured_success(
         mcp.tool(
             "desktop.observe",
@@ -151,7 +152,7 @@ def observe_view(mcp: McpSession, app: str) -> tuple[str, int]:
     return view_id, int(windows[0]["pid"])
 
 
-def semantic_find(mcp: McpSession, app: str) -> tuple[str, str]:
+def semantic_find(mcp: McpSession, app: str) -> Tuple[str, str]:
     structured = structured_success(
         mcp.tool(
             "desktop.observe",
