@@ -1,6 +1,6 @@
 (() => {
   const data = JSON.parse(document.getElementById('debug-data').textContent);
-  const {groupNodes, matchesRole, visibleRect} = DebugViewerFilter;
+  const {groupNodes, imageSource, matchesRole, visibleRect} = DebugViewerFilter;
   const byId = id => document.getElementById(id);
   const ns = 'http://www.w3.org/2000/svg';
   const roles = new Set();
@@ -150,7 +150,7 @@
     byId('phase').textContent = frame ? (phase === 'before' ? 'Before dispatch: requested target' : data.mode === 'click' ? 'After command: observed window' : 'Returned tree over captured window') : 'Screenshot unavailable';
     if (frame) {
       byId('summary').textContent = `${data.mode} · ${frame.window.app} · ${frame.window.title || frame.window.id} · ${data.ok ? 'command succeeded' : 'command failed'}`;
-      byId('capture').src = frame.image;
+      byId('capture').src = imageSource(frame.image);
       byId('capture').alt = `${frame.window.app} window, ${phase} command capture`;
       byId('list-title').textContent = `${frame.nodes.length} ${data.mode === 'click' ? 'target elements' : 'returned nodes'}`;
     }

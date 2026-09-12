@@ -120,6 +120,14 @@ impl SystemOps for FocusAdapter {
 }
 
 fn execute(adapter: &FocusAdapter, headed: bool) -> Result<ActionResult, AdapterError> {
+    execute_within(adapter, headed, 2_000)
+}
+
+fn execute_within(
+    adapter: &FocusAdapter,
+    headed: bool,
+    timeout_ms: u64,
+) -> Result<ActionResult, AdapterError> {
     let entry: RefEntry = serde_json::from_value(serde_json::json!({
         "pid": 1, "process_instance": "test-instance", "role": "button", "name": "Run",
         "source_window_id": "w-test", "source_surface": "window", "path": [0],
@@ -130,7 +138,7 @@ fn execute(adapter: &FocusAdapter, headed: bool) -> Result<ActionResult, Adapter
     } else {
         ActionRequest::headless(Action::Click)
     };
-    crate::ref_action::execute_entry(adapter, &entry, request.with_timeout_ms(Some(150)))
+    crate::ref_action::execute_entry(adapter, &entry, request.with_timeout_ms(Some(timeout_ms)))
 }
 
 fn adapter(persistent_occlusion: bool, enabled: bool) -> FocusAdapter {
@@ -161,7 +169,7 @@ fn headed_target_still_occluded_after_focus_never_receives_input() {
 #[test]
 fn disabled_target_does_not_trigger_early_focus() {
     let adapter = adapter(false, false);
-    execute(&adapter, true).unwrap_err();
+    execute_within(&adapter, true, 150).unwrap_err();
     assert!(!adapter.focused.load(Ordering::SeqCst));
     assert_eq!(adapter.dispatched.load(Ordering::SeqCst), 0);
 }

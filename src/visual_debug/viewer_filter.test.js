@@ -1,6 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {groupNodes, matchesRole, visibleRect} = require('./viewer_filter.js');
+const {groupNodes, imageSource, matchesRole, visibleRect} = require('./viewer_filter.js');
 
 const nodes = [{role: 'window'}, {role: 'treeitem'}, {role: 'button'}, {role: 'treeitem'}];
 
@@ -31,4 +31,19 @@ test('geometry clips to the window and handles negative monitor origins', () => 
   assert.equal(visibleRect({x: 0, y: 60, width: 30, height: 20}, window), null);
   assert.equal(visibleRect(null, window), null);
   assert.equal(visibleRect({x: NaN, y: 60, width: 30, height: 20}, window), null);
+});
+
+test('only a base64 PNG data URI is accepted as an image source', () => {
+  const png = 'data:image/png;base64,iVBORw0KGgo=';
+  assert.equal(imageSource(png), png);
+  for (const rejected of [
+    'javascript:alert(1)',
+    'data:text/html;base64,PHNjcmlwdD4=',
+    'data:image/svg+xml;base64,PHN2Zz4=',
+    ' data:image/png;base64,iVBORw0KGgo=',
+    'data:image/png;base64,iVBORw0KGgo=<script>',
+    undefined,
+  ]) {
+    assert.equal(imageSource(rejected), '');
+  }
 });

@@ -19,7 +19,8 @@ export function renderScreenshot(view, selection, items, matchRefs, onSelect) {
     return;
   }
   const image = byId('capture');
-  if (image.getAttribute('src') !== frame.image) image.src = frame.image;
+  const source = DebugViewerFilter.imageSource(frame.image);
+  if (image.getAttribute('src') !== source) image.src = source;
   image.alt = `${view.app}: ${frame.window.title || 'window'}`;
   if (!byId('highlights').checked) return;
   const bounds = frame.window.bounds;
