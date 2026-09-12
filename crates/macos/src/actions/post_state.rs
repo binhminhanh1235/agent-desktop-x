@@ -35,16 +35,17 @@ pub(crate) fn read_live_element(
     let available_actions = known_actions(read.evidence.ref_evidence.available_actions)?;
     let attrs = read.attrs;
     let bounds = attrs.bounds;
+    let expanded_observed = attrs
+        .states
+        .control
+        .expanded
+        .or(attrs.states.control.disclosing)
+        .is_some();
     let window_bounds = owning_window_bounds(element, deadline)?;
     let state = element_state_from_attrs(element, attrs, role, window_bounds)?;
     Ok(LiveElement {
         identity,
-        states_complete: !crate::tree::roles::is_toggleable_role(&state.role)
-            || state
-                .value
-                .as_deref()
-                .and_then(crate::tree::state_reader::parse_checked_value)
-                .is_some(),
+        states_complete: states_are_complete(&state, expanded_observed),
         state,
         bounds,
         available_actions,
@@ -162,6 +163,21 @@ fn incomplete_live_evidence() -> AdapterError {
         "complete": false,
         "retryable": true,
     }))
+}
+
+/// Reports whether the control-state evidence the post-action verifier reads was
+/// actually observed. A toggleable role needs a parsable checked value; an
+/// expandable role needs an observed expanded or disclosing attribute, because an
+/// unread attribute is otherwise indistinguishable from a collapsed control.
+pub(crate) fn states_are_complete(state: &ElementState, expanded_observed: bool) -> bool {
+    let toggle_ready = !crate::tree::roles::is_toggleable_role(&state.role)
+        || state
+            .value
+            .as_deref()
+            .and_then(crate::tree::state_reader::parse_checked_value)
+            .is_some();
+    let expand_ready = !crate::tree::roles::is_expandable_role(&state.role) || expanded_observed;
+    toggle_ready && expand_ready
 }
 
 fn element_state_from_attrs(

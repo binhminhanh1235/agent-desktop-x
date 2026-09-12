@@ -154,3 +154,20 @@ fn optional_identity_gaps_do_not_poison_complete_actionability_evidence() {
     evidence.states = LocatorField::Unknown;
     assert!(!essential_live_evidence_complete(&evidence));
 }
+
+#[test]
+fn an_unread_expanded_attribute_is_not_complete_state_evidence() {
+    let element = |role: &str| agent_desktop_core::ElementState {
+        role: role.into(),
+        states: Vec::new(),
+        value: None,
+        enabled: Some(true),
+        hidden: Some(false),
+        offscreen: Some(false),
+    };
+
+    assert!(!states_are_complete(&element("disclosure"), false));
+    assert!(states_are_complete(&element("disclosure"), true));
+    assert!(states_are_complete(&element("button"), false));
+    assert!(!states_are_complete(&element("checkbox"), true));
+}

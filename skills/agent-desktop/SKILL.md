@@ -45,7 +45,7 @@ Detailed documentation is split into focused reference files. Read them as neede
 | `references/commands-observation.md` | snapshot, find, get, is, screenshot, list-surfaces — all flags, output examples |
 | `references/commands-interaction.md` | click, type, set-value, select, toggle, scroll, drag, keyboard, mouse — choosing the right command |
 | `references/commands-system.md` | launch (including `--cdp` for Chromium web contents), close, windows, clipboard, wait, batch, session, status, permissions, version |
-| `references/workflows.md` | 16 common patterns: forms, menus, dialogs, scroll-find, drag-drop, async wait, anti-patterns |
+| `references/workflows.md` | 17 common patterns: forms, menus, dialogs, scroll-find, drag-drop, async wait, anti-patterns |
 | `references/macos.md` | macOS permissions/TCC, AX API internals, smart activation chain, surfaces, Notification Center, troubleshooting |
 
 ## The Observe-Act Loop (Progressive Skeleton Traversal)
@@ -106,6 +106,15 @@ Every command returns a JSON envelope on stdout:
 **Error:** `{ "version": "2.4", "ok": false, "command": "click", "error": { "code": "STALE_REF", "message": "...", "suggestion": "..." } }`
 
 The `error` object may also carry an optional `details` object (e.g. the actionability report on an actionability failure, candidate summaries on `AMBIGUOUS_TARGET`, or the last observed state on a `wait` `TIMEOUT`). Parse errors leniently — `details` and future fields are additive, so do not reject responses with unknown keys.
+
+An error also carries `disposition`, and that object decides whether a retry is safe:
+
+| Field | Values |
+|-------|--------|
+| `disposition.delivery` | `not_delivered`, `delivery_uncertain`, `delivered_unverified`, `delivered_verified`, `unknown` |
+| `disposition.retry` | `safe`, `unsafe`, `unknown` |
+
+**Retry or substitute an action only when `disposition.retry` is `safe`, and follow `recovery.strategy` only in that same case.** Only `not_delivered` is `safe`. Every other delivery value is `unsafe`, because the action may already have landed — repeating it would click, type, or submit twice. On an `unsafe` result, read `details.post_state` and `details.postcondition_satisfied` to decide what actually happened, then act on the observed state instead of repeating the command. A failure after preparatory scrolling carries `details.preparatory_scroll` and never authorizes an automatic retry.
 
 An actionability failure on a hit-test action (`click`, `double-click`, `right-click`, `triple-click`, `hover`, `drag`) can carry a `receives_events` check with `reason: "occluded by <role>"` plus a structured `occluder: { "role", "name", "bounds" }` — another element is on top of the target. Bring the target window/element to the front (or dismiss the occluder) rather than blind-retrying; see `references/commands-interaction.md` for the full check list.
 

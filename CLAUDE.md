@@ -286,7 +286,7 @@ Every command produces a response envelope:
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "ok": true,
   "command": "snapshot",
   "data": {
@@ -302,7 +302,7 @@ Error responses:
 
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "ok": false,
   "command": "click",
   "error": {
@@ -400,10 +400,10 @@ contact with Windows and was deleted. See
 
 ## Commands
 
-58 commands spanning App/Window, Observation, Interaction, Scroll, Keyboard,
+59 commands spanning App/Window, Observation, Interaction, Scroll, Keyboard,
 Mouse, Notifications (macOS), Clipboard, Wait, System (including `session`), and
 Batch. The full surface and per-command reference live in `skills/agent-desktop/`.
-All 58 are implemented on macOS (Phase 1); Windows/Linux (Phase 2/3) target the
+All 59 are implemented on macOS (Phase 1); Windows/Linux (Phase 2/3) target the
 same surface. Adding a command: see the Extensibility Pattern above.
 
 ## Non-Goals

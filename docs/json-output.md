@@ -68,7 +68,7 @@ Inspect `disposition.retry` before retrying or choosing an alternative action, r
 | `AMBIGUOUS_TARGET` | Ref recovery matched multiple plausible targets |
 | `SNAPSHOT_NOT_FOUND` | Snapshot ID is missing or expired |
 | `POLICY_DENIED` | Physical/headed path blocked by policy |
-| `ACTION_FAILED` | The OS rejected the action |
+| `ACTION_FAILED` | Action rejected, or its observed result contradicted the request |
 | `ACTION_NOT_SUPPORTED` | The target does not expose the requested action |
 | `APP_UNRESPONSIVE` | The matching application stopped responding |
 | `PLATFORM_NOT_SUPPORTED` | Adapter method not implemented on this platform |

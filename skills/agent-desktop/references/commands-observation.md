@@ -137,19 +137,6 @@ agent-desktop click @s8f3k2p9:e5 --debug --screenshot /tmp/click-visual.html
 - Screenshots and labels are sensitive. No session is needed. Debug snapshots retain full bounds in their persisted refmap for the viewer; JSON still omits bounds unless `--include-bounds` was requested. Debug capture is opt-in, not a byte-identical persistence mode.
 - Rebuild after viewer changes and generate a new artifact; saved HTML does not update automatically.
 
-### Live inspector (source checkout)
-
-For an interactive tree and screenshot, run from the repository root with Node 22+:
-
-```bash
-cargo build --release -p agent-desktop
-npm --prefix tools/inspector run dev
-```
-
-Choose an app and select **Inspect app**. Tree arrows load children through the CLI; selecting a row isolates its highlight. **Show all** restores the overview. The right panel provides root-scoped find and property/state reads, with a progress toast while commands run.
-
-No npm dependencies or global tools are needed. The bridge opens a localhost URL, retries busy ports, and keeps separate temporary snapshot state. Use the full launch URL: its fragment carries the capability token, which is not served in public HTML. Accessibility permission is required; without Screen Recording permission the inspector falls back to the accessibility tree and shows a warning. It is read-only and uses the same screenshot styling as saved debug HTML. Keep one active view per server and refresh after app changes or a failed drill, which may already have replaced stored refs. Normal shutdown removes private state; `SIGKILL` or a system crash can leave temporary files. Run tests with `npm --prefix tools/inspector test`.
-
 ## find
 
 Search elements by role, name, value, or text content.
@@ -206,6 +193,8 @@ menu-bar dump.
 ```
 
 Every non-count `find` response returns the `snapshot_id` that owns its refs. Pass that exact ID to later ref actions instead of relying on the mutable latest-snapshot pointer, especially when interleaving automation across apps or windows. Count-only responses create no ref namespace and omit `snapshot_id`.
+
+A match with no `ref_id` is a context match: readable text that carries no action target. A context match also carries a `bounds` object (`{ x, y, width, height }`) whenever the platform reports one, so it can still be located on screen. A match that has a `ref_id` never carries `bounds`; read those with `get --property bounds`.
 
 **Output (no match — `roles_present` hint):** when a `--role` filter matches nothing, `roles_present` lists the roles actually in the searched tree so you can tell a wrong role name from "none on screen"; this applies to all non-count selection modes — an empty match list, or a `--first`/`--last`/`--nth` miss — whenever a role filter was active, making it a role-vocabulary hint for retries.
 ```json
