@@ -45,7 +45,7 @@ Detailed documentation is split into focused reference files. Read them as neede
 | `references/commands-observation.md` | snapshot, find, get, is, screenshot, list-surfaces — all flags, output examples |
 | `references/commands-interaction.md` | click, type, set-value, select, toggle, scroll, drag, keyboard, mouse — choosing the right command |
 | `references/commands-system.md` | launch (including `--cdp` for Chromium web contents), close, windows, clipboard, wait, batch, session, status, permissions, version |
-| `references/workflows.md` | 16 common patterns: forms, menus, dialogs, scroll-find, drag-drop, async wait, anti-patterns |
+| `references/workflows.md` | 17 common patterns: forms, menus, dialogs, scroll-find, drag-drop, async wait, anti-patterns |
 | `references/macos.md` | macOS permissions/TCC, AX API internals, smart activation chain, surfaces, Notification Center, troubleshooting |
 
 ## The Observe-Act Loop (Progressive Skeleton Traversal)
@@ -102,10 +102,19 @@ When you know the target's role or exact name, use `find --role ... --name ... -
 
 Every command returns a JSON envelope on stdout:
 
-**Success:** `{ "version": "2.3", "ok": true, "command": "snapshot", "data": { ... } }`
-**Error:** `{ "version": "2.3", "ok": false, "command": "click", "error": { "code": "STALE_REF", "message": "...", "suggestion": "..." } }`
+**Success:** `{ "version": "2.4", "ok": true, "command": "snapshot", "data": { ... } }`
+**Error:** `{ "version": "2.4", "ok": false, "command": "click", "error": { "code": "STALE_REF", "message": "...", "suggestion": "..." } }`
 
 The `error` object may also carry an optional `details` object (e.g. the actionability report on an actionability failure, candidate summaries on `AMBIGUOUS_TARGET`, or the last observed state on a `wait` `TIMEOUT`). Parse errors leniently — `details` and future fields are additive, so do not reject responses with unknown keys.
+
+An error also carries `disposition`, and that object decides whether a retry is safe:
+
+| Field | Values |
+|-------|--------|
+| `disposition.delivery` | `not_delivered`, `delivery_uncertain`, `delivered_unverified`, `delivered_verified`, `unknown` |
+| `disposition.retry` | `safe`, `unsafe`, `unknown` |
+
+**Retry or substitute an action only when `disposition.retry` is `safe`, and follow `recovery.strategy` only in that same case.** Only `not_delivered` is `safe`. Every other delivery value is `unsafe`, because the action may already have landed — repeating it would click, type, or submit twice. On an `unsafe` result, read `details.post_state` and `details.postcondition_satisfied` to decide what actually happened, then act on the observed state instead of repeating the command. A failure after preparatory scrolling carries `details.preparatory_scroll` and never authorizes an automatic retry.
 
 An actionability failure on a hit-test action (`click`, `double-click`, `right-click`, `triple-click`, `hover`, `drag`) can carry a `receives_events` check with `reason: "occluded by <role>"` plus a structured `occluder: { "role", "name", "bounds" }` — another element is on top of the target. Bring the target window/element to the front (or dismiss the occluder) rather than blind-retrying; see `references/commands-interaction.md` for the full check list.
 
@@ -118,7 +127,7 @@ Exit codes: `0` success, `1` structured error, `2` argument error.
 | `PERM_DENIED` | Accessibility or Screen Recording permission not granted | Grant the named permission in System Settings |
 | `ELEMENT_NOT_FOUND` | Ref cannot be resolved against the live UI | Re-run snapshot, use fresh ref |
 | `APP_NOT_FOUND` | App not running | Launch it first |
-| `ACTION_FAILED` | AX action rejected | Try an explicit alternative command |
+| `ACTION_FAILED` | Action rejected or its observed result contradicted the request | Inspect `disposition.retry`, `details.post_state`, and `details.after_action`; do not repeat or substitute an action after uncertain or unverified delivery |
 | `ACTION_NOT_SUPPORTED` | Element can't do this | Use different command |
 | `STALE_REF` | Ref could not be re-identified in the live UI | Use the `snapshot_id` returned with this ref; if the UI changed or the target disappeared, re-run `snapshot` / `snapshot --skeleton` to get fresh refs |
 | `AMBIGUOUS_TARGET` | Multiple elements matched the old ref identity | Re-run snapshot and choose a more specific ref |
@@ -133,6 +142,8 @@ Exit codes: `0` success, `1` structured error, `2` argument error.
 | `INTERNAL` | Unexpected platform/OS failure (e.g. event synthesis failed) | Read `message`/`suggestion` for cleanup state, then retry once; persistent failures indicate an environment problem |
 
 `TIMEOUT` errors carry a `details` object whose `kind` field selects the schema. `kind: "wait_timeout"` includes `predicate`, `timeout_ms`, and `last_observed` or `last_error`, plus `ref`/`title`/`text_chars` depending on the wait mode. `kind: "chain_deadline"` includes `value_before`, `value_at_timeout`, `target`, and `mutated` (increment waits) or `wanted_expanded`/`observed_expanded` (disclosure waits). `mutated: true` — or an unknown `observed_expanded` state — means re-read the element before retrying; `mutated: false` means the state did not change and retrying directly is safe.
+
+`details.kind: "post_action_verification"` means execution was followed by a contradictory or failed state read. The original read error code is preserved, so even `STALE_REF` or `TIMEOUT` can follow delivery. Inspect `post_state`, `after_action`, and `disposition.retry` before any retry or alternative action. Missing evidence alone is reported as successful `delivered_unverified` with `details.verification_scope: "unavailable"`, not as proof that the change failed.
 
 ## Command Quick Reference (59 names, 55 operational)
 
@@ -150,6 +161,8 @@ agent-desktop get @e1 --snapshot <snapshot_id> --property text       # Read elem
 agent-desktop is @e1 --snapshot <snapshot_id> --property enabled     # Check element state
 agent-desktop list-surfaces --app "App"                     # Available surfaces
 ```
+
+For a visual demo on macOS, add `--debug --screenshot /tmp/visual.html` to `snapshot` or `click`. The local HTML viewer has ref highlights and collapsible role groups with checkbox filters. Choose a new file; see [Visual debug](references/commands-observation.md#visual-debug).
 
 ### Interaction
 ```
