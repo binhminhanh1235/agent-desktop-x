@@ -37,7 +37,7 @@ agent-desktop snapshot --root @e12 --snapshot <snapshot_id> -i
 **Output structure:**
 ```json
 {
-  "version": "2.3",
+  "version": "2.4",
   "ok": true,
   "command": "snapshot",
   "data": {
@@ -107,6 +107,48 @@ agent-desktop snapshot --root @e3 --snapshot <snapshot_id> -i
 - Combine `--skeleton` with `-i` and `--compact` for the most token-efficient initial overview
 - For a Chromium-based app's web contents (Slack, VS Code, Discord, and similar), `launch --cdp` plus a CDP client is a faster alternative to skeleton traversal on a fresh launch — see `references/commands-system.md`
 - Keep `snapshot_id` when commands must resolve against a specific snapshot instead of the latest snapshot pointer
+
+### Visual debug
+
+On macOS, `--debug --screenshot PATH.html` saves a local HTML viewer with window screenshots, element highlights, and ref labels. With TextEdit open:
+
+```bash
+agent-desktop snapshot --app TextEdit --skeleton -i --debug --screenshot /tmp/textedit-visual.html
+open /tmp/textedit-visual.html
+```
+
+For a click, use a real ref from your snapshot:
+
+```bash
+agent-desktop click @s8f3k2p9:e5 --debug --screenshot /tmp/click-visual.html
+```
+
+**Using the viewer**
+- Expand a role group to inspect its elements; snapshot groups start collapsed.
+- Check **Tree items**, **Buttons**, or another role to filter highlights. Multiple checked roles combine; none checked shows all. Checking does not expand the group.
+- Select an element to isolate its bounds and ref; select it again to undo. **Show all elements** resets everything. **Highlights** hides or shows the boxes.
+- Blue = action ref, amber dashed = drill anchor, gray = context, red = click target. Hidden/offscreen elements and elements without drawable bounds stay listed without boxes. List numbers are not refs.
+- Click captures have **Before click** and **After command** views. Only the before image highlights the target; screenshots are not proof of delivery or a live recording.
+
+**Important limits**
+- Both flags are required. Choose a new `.html` file in an existing directory; files are never overwritten.
+- Requires Accessibility and Screen Recording permissions. Supports window-surface `snapshot` and ref-based `click`, not batch or other commands. It does not enable `--headed`; `-v` is still separate logging.
+- Success adds `data.debug` with the artifact path and optional warning. Late capture/write failures preserve the command result; command failures preserve the original error and report artifact metadata on stderr. Preparation errors may prevent dispatch.
+- Screenshots and labels are sensitive. No session is needed. Debug snapshots retain full bounds in their persisted refmap for the viewer; JSON still omits bounds unless `--include-bounds` was requested. Debug capture is opt-in, not a byte-identical persistence mode.
+- Rebuild after viewer changes and generate a new artifact; saved HTML does not update automatically.
+
+### Live inspector (source checkout)
+
+For an interactive tree and screenshot, run from the repository root with Node 22+:
+
+```bash
+cargo build --release -p agent-desktop
+npm --prefix tools/inspector run dev
+```
+
+Choose an app and select **Inspect app**. Tree arrows load children through the CLI; selecting a row isolates its highlight. **Show all** restores the overview. The right panel provides root-scoped find and property/state reads, with a progress toast while commands run.
+
+No npm dependencies or global tools are needed. The bridge opens a localhost URL, retries busy ports, and keeps separate temporary snapshot state. Use the full launch URL: its fragment carries the capability token, which is not served in public HTML. Accessibility permission is required; without Screen Recording permission the inspector falls back to the accessibility tree and shows a warning. It is read-only and uses the same screenshot styling as saved debug HTML. Keep one active view per server and refresh after app changes or a failed drill, which may already have replaced stored refs. Normal shutdown removes private state; `SIGKILL` or a system crash can leave temporary files. Run tests with `npm --prefix tools/inspector test`.
 
 ## find
 

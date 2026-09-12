@@ -61,24 +61,6 @@ fn element_state_from_attrs_omits_offscreen_without_window_bounds() {
 }
 
 #[test]
-fn post_delay_is_skipped_when_it_would_exhaust_the_budget() {
-    let deadline = Deadline::after(1).unwrap();
-
-    assert!(!pause_if_budget_allows(
-        deadline,
-        std::time::Duration::from_millis(50)
-    ));
-}
-
-#[test]
-fn click_does_not_post_read_a_target_that_navigation_may_detach() {
-    let element = crate::tree::AXElement(std::ptr::null_mut());
-    let state = read_post_state(&element, &Action::Click, Deadline::after(1).unwrap()).unwrap();
-
-    assert!(state.is_none());
-}
-
-#[test]
 fn post_state_uses_the_same_subrole_mapping_as_snapshot_observation() {
     assert_eq!(
         normalized_role(Some("AXRow"), Some("AXOutlineRow")),

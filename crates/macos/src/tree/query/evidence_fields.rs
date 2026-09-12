@@ -4,6 +4,21 @@ use crate::tree::node_attribute_status::{
     DESCRIPTION, LABEL, NodeAttributeStatus, PLACEHOLDER, TITLE, TITLE_ELEMENT, VALUE,
 };
 
+pub(crate) fn role_field(
+    role: Option<&str>,
+    subrole: Option<&str>,
+    status: &NodeAttributeStatus,
+) -> LocatorField<String> {
+    if status.role_unknown() {
+        LocatorField::Unknown
+    } else {
+        super::node_evidence::option_field(
+            role.map(|role| crate::tree::roles::ax_role_and_subrole_to_str(role, subrole).into()),
+            false,
+        )
+    }
+}
+
 pub(crate) fn name_field(
     evidence: &NameEvidence,
     status: &NodeAttributeStatus,
@@ -109,6 +124,29 @@ fn meaningful(value: Option<&str>) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn failed_subrole_read_cannot_prove_a_canonical_role_or_state() {
+        let mut status = NodeAttributeStatus::default();
+        status.record_slot_error(
+            crate::tree::node_attribute_status::SUBROLE,
+            accessibility_sys::kAXErrorCannotComplete,
+        );
+
+        assert_eq!(
+            role_field(Some("AXGroup"), None, &status),
+            LocatorField::Unknown
+        );
+        assert!(status.states_unknown());
+        assert_eq!(
+            role_field(
+                Some("AXGroup"),
+                Some("AXApplicationDialog"),
+                &NodeAttributeStatus::default()
+            ),
+            LocatorField::Known("dialog".into()),
+        );
+    }
 
     #[test]
     fn transient_higher_priority_name_source_keeps_fallback_unknown() {

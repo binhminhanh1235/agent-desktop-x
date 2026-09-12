@@ -75,6 +75,45 @@ fn snapshot_roundtrip_updates_latest_pointer() {
     assert_eq!(store.load(None).unwrap().len(), 1);
 }
 
+#[test]
+fn load_ref_uses_qualified_identity_and_never_crosses_sessions() {
+    let _guard = HomeGuard::new();
+    let store = RefStore::for_session(Some("debug-session")).unwrap();
+    let snapshot = store.save_new_snapshot(&map_with("Target")).unwrap();
+    let qualified = format!("@{snapshot}:e1");
+    assert_eq!(store.load_ref(&qualified, None).unwrap(), entry("Target"));
+    assert_eq!(
+        store.load_ref("@e1", Some(&snapshot)).unwrap(),
+        entry("Target")
+    );
+    assert_eq!(
+        store.load_ref("@e1", None).unwrap_err().code(),
+        "INVALID_ARGS"
+    );
+    assert_eq!(
+        store
+            .load_ref(&qualified, Some("sother"))
+            .unwrap_err()
+            .code(),
+        "INVALID_ARGS"
+    );
+    assert_eq!(
+        store
+            .load_ref(&format!("@{snapshot}:e2"), None)
+            .unwrap_err()
+            .code(),
+        "STALE_REF"
+    );
+    assert_eq!(
+        RefStore::new()
+            .unwrap()
+            .load_ref(&qualified, None)
+            .unwrap_err()
+            .code(),
+        "SNAPSHOT_NOT_FOUND"
+    );
+}
+
 fn save_snapshot_after_contention(store: &RefStore, name: &str) -> String {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
