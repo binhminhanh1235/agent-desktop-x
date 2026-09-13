@@ -139,7 +139,20 @@ impl ObservationOps for PolicyCaptureAdapter {
             crate::capability::CLICK,
             crate::capability::PRESS_KEY,
             crate::capability::SET_VALUE
-        ]
+        ],
+        adapter => crate::ElementState {
+            role: "textfield".into(),
+            states: Vec::new(),
+            value: adapter.captured.lock().unwrap().as_ref().and_then(|request| {
+                match &request.action {
+                    Action::SetValue(value) => Some(value.clone()),
+                    _ => None,
+                }
+            }),
+            enabled: Some(true),
+            hidden: Some(false),
+            offscreen: Some(false),
+        }
     );
 }
 
@@ -160,38 +173,6 @@ impl InputOps for PolicyCaptureAdapter {}
 impl SystemOps for PolicyCaptureAdapter {
     crate::adapter::guarded_interaction_lease!();
     crate::adapter::exact_window_focus!();
-}
-
-#[test]
-fn default_action_timeout_ms_is_five_seconds() {
-    assert_eq!(DEFAULT_ACTION_TIMEOUT_MS, 5000);
-}
-
-/// `execute` must forward `DEFAULT_ACTION_TIMEOUT_MS` (not `None` or `0`) into
-/// the ref-action retry budget, exactly as a direct
-/// `execute_with_timeout(args, DEFAULT_ACTION_TIMEOUT_MS, ..)` call would.
-/// A transient `STALE_REF` that clears within the budget must therefore be
-/// retried until it resolves rather than surfacing on the first attempt.
-#[test]
-fn execute_forwards_default_timeout_and_retries_transient_stale_ref() {
-    let _guard = HomeGuard::new();
-    let snapshot_id = snapshot_with_ref("textfield", &["Click"]);
-    let adapter = StaleThenOkAdapter::new(2);
-
-    let value = execute(
-        ExecuteByRefArgs {
-            ref_id: "@e1",
-            snapshot_id: Some(&snapshot_id),
-            action: Action::Click,
-            caller_policy: InteractionPolicy::headless(),
-        },
-        &adapter,
-        &CommandContext::default(),
-    )
-    .unwrap();
-
-    assert_eq!(value["action"], "click");
-    assert!(adapter.resolve_calls.load(Ordering::SeqCst) >= 3);
 }
 
 /// `execute_with_timeout` must run `normalize_action_timeout_ms` on the raw
@@ -227,7 +208,7 @@ fn explicit_press_key_keeps_its_focus_fallback_policy() {
     let snapshot_id = snapshot_with_ref("textfield", &["PressKey"]);
     let adapter = PolicyCaptureAdapter::new();
 
-    execute(
+    execute_with_timeout(
         ExecuteByRefArgs {
             ref_id: "@e1",
             snapshot_id: Some(&snapshot_id),
@@ -237,6 +218,7 @@ fn explicit_press_key_keeps_its_focus_fallback_policy() {
             }),
             caller_policy: InteractionPolicy::headless(),
         },
+        5000,
         &adapter,
         &CommandContext::default(),
     )
@@ -254,13 +236,14 @@ fn effective_policy_honors_caller_policy_above_action_base() {
     let snapshot_id = snapshot_with_ref("textfield", &["SetValue"]);
     let adapter = PolicyCaptureAdapter::new();
 
-    execute(
+    execute_with_timeout(
         ExecuteByRefArgs {
             ref_id: "@e1",
             snapshot_id: Some(&snapshot_id),
             action: Action::SetValue("value".into()),
             caller_policy: InteractionPolicy::headed(),
         },
+        5000,
         &adapter,
         &CommandContext::default(),
     )

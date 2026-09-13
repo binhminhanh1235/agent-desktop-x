@@ -174,9 +174,7 @@ fn capture_with_flags(
 
 fn frame_appears_empty(pixels: &[u8]) -> bool {
     !pixels
-        .as_chunks::<4>()
-        .0
-        .iter()
+        .chunks_exact(4)
         .any(|px| px[0] != 0 || px[1] != 0 || px[2] != 0)
 }
 

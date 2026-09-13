@@ -270,7 +270,6 @@ fn opening_the_taskbar_round_trips_without_raising_anything() {
 fn strict_headless_open_refuses_before_raising() {
     bootstrap();
     let _lock = SHELL_SURFACE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let _stage = crate::tree::fixture_window::on_screen_stage();
     with_interaction_lease_test_lock(|| {
         let _ = close_surface(SnapshotSurface::ActionCenter, deadline(5_000));
         assert!(

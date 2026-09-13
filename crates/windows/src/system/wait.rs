@@ -8,7 +8,6 @@ use super::menu_state::menu_is_open;
 use super::process_identity;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
-const UNRESPONSIVE_EXIT_GRACE: Duration = Duration::from_millis(500);
 
 /// Polls the [`menu_is_open`] predicate until the target process's
 /// menu-open state equals `open`, then returns `Ok(())`.
@@ -42,11 +41,11 @@ const UNRESPONSIVE_EXIT_GRACE: Duration = Duration::from_millis(500);
 /// this crate already uses for a resolved reference that no longer matches
 /// live state, rather than the transient-condition code macOS reuses there.
 ///
-/// A second identity check also runs before any non-timeout predicate error is
-/// surfaced. That closes the race where the process exits after the pre-poll
-/// check but before or during the provider read: a dead or recycled process is
-/// reported as `StaleRef`, while a still-live unresponsive target keeps the
-/// original provider error.
+/// The same precedence covers a non-`Timeout` predicate error: `menu_state`
+/// reports a target that vanished mid-read as a transient `AppUnresponsive`,
+/// so the loop re-checks liveness before that error leaves the method and a
+/// gone target surfaces as `StaleRef`, while a live-but-unresponsive target
+/// still propagates the predicate's own error unchanged.
 pub(crate) fn wait_for_menu(
     process: ProcessIdentity,
     open: bool,
@@ -61,10 +60,6 @@ pub(crate) fn wait_for_menu(
             }
             Ok(_) => {}
             Err(error) if error.code == ErrorCode::Timeout => {}
-            Err(error) if error.code == ErrorCode::AppUnresponsive => {
-                classify_unresponsive_process(&process, deadline)?;
-                return Err(error);
-            }
             Err(error) => {
                 verify_process_alive(&process)?;
                 return Err(error);
@@ -103,38 +98,14 @@ fn evaluate_menu_state(pid: ProcessId, deadline: Deadline) -> Result<bool, Adapt
 }
 
 fn verify_process_alive(process: &ProcessIdentity) -> Result<(), AdapterError> {
+    #[cfg(test)]
+    if forced_process_death::take() {
+        return Err(stale_process_error(process));
+    }
     if process_identity::matches_instance(process.pid, &process.instance)? {
         Ok(())
     } else {
         Err(stale_process_error(process))
-    }
-}
-
-/// Distinguishes a process that is briefly still alive while exiting from a
-/// genuinely live but unresponsive target. UI Automation can stop responding
-/// before the process handle reaches its terminal state, so an immediate
-/// identity re-check is not enough to classify that edge reliably. The grace
-/// is bounded, never re-reads the UI predicate, and never outlives the caller's
-/// deadline. If the same process generation remains alive throughout it, the
-/// original `AppUnresponsive` is preserved by the caller.
-fn classify_unresponsive_process(
-    process: &ProcessIdentity,
-    deadline: Deadline,
-) -> Result<(), AdapterError> {
-    let stop_at = std::time::Instant::now() + UNRESPONSIVE_EXIT_GRACE;
-    loop {
-        verify_process_alive(process)?;
-        let now = std::time::Instant::now();
-        if now >= stop_at || deadline.is_expired() {
-            return Ok(());
-        }
-        let remaining_grace = stop_at.saturating_duration_since(now);
-        let slice = remaining_grace.min(POLL_INTERVAL);
-        let pause = match deadline.remaining_slice(slice) {
-            Ok(pause) => pause,
-            Err(_) => return Ok(()),
-        };
-        std::thread::sleep(pause);
     }
 }
 
@@ -205,6 +176,38 @@ pub(super) mod forced_predicate_error {
 
     pub(super) fn take() -> Option<AdapterError> {
         FORCED.with(|cell| cell.borrow_mut().take())
+    }
+}
+
+/// Forces the process-liveness check to report the target gone after a chosen
+/// number of successful checks, so a test can stage the race where a process
+/// exits between the loop's pre-read liveness check and the predicate read -
+/// `forced_predicate_error` supplies the intervening evaluation failure -
+/// without racing a real termination.
+#[cfg(test)]
+pub(super) mod forced_process_death {
+    use std::cell::Cell;
+
+    thread_local! {
+        static SKIPS_REMAINING: Cell<Option<usize>> = const { Cell::new(None) };
+    }
+
+    pub(super) fn arm_after(skips: usize) {
+        SKIPS_REMAINING.with(|cell| cell.set(Some(skips)));
+    }
+
+    pub(super) fn take() -> bool {
+        SKIPS_REMAINING.with(|cell| match cell.get() {
+            None => false,
+            Some(0) => {
+                cell.set(None);
+                true
+            }
+            Some(remaining) => {
+                cell.set(Some(remaining - 1));
+                false
+            }
+        })
     }
 }
 

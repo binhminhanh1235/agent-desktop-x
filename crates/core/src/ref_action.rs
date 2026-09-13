@@ -1,3 +1,4 @@
+use crate::ref_action_wait_support::{after_scroll, trace_scroll_error};
 use crate::{
     AdapterError, AppError, DeliverySemantics, ErrorCode,
     action_request::ActionRequest,
@@ -104,9 +105,10 @@ pub(crate) fn dispatch_resolved(
             handle = target
                 .adapter
                 .resolve_element_strict(target.entry, target.deadline)
-                .map_err(mark_pre_dispatch_resolution_failure)?;
+                .map_err(after_scroll)?;
             let scrolled_target = ResolvedRefAction::new(target, &handle);
-            stable_preflight(&scrolled_target, &request)?
+            stable_preflight(&scrolled_target, &request)
+                .map_err(|error| after_scroll(into_adapter_error(error)))?
         }
     };
     if matches!(
@@ -127,9 +129,8 @@ pub(crate) fn dispatch_resolved(
     let raises_surface = request.action.may_raise_surface();
     let presentation_action = request.action.clone();
     presentation::before_dispatch(&final_target, &preflight, lease);
-    let dispatch_result = final_target
-        .adapter
-        .execute_action(final_target.handle, request, lease);
+    let dispatch_result =
+        crate::execute_verified_action(final_target.adapter, final_target.handle, request, lease);
     presentation::after_dispatch(
         final_target.adapter,
         final_target.context,
@@ -280,16 +281,6 @@ fn stable_preflight(
     }
 }
 
-fn trace_scroll_error(target: &RefActionContext<'_>, error: &AdapterError) {
-    let _ = target.context.trace_lazy("ref.scroll_into_view.error", || {
-        serde_json::json!({
-            "ref": target.ref_id,
-            "code": error.code.as_str(),
-            "message": error.message,
-        })
-    });
-}
-
 #[cfg(test)]
 pub(crate) fn execute_resolved(
     target: ResolvedRefAction<'_>,
@@ -337,9 +328,9 @@ fn ref_label_from_entry(entry: &RefEntry) -> String {
 }
 
 /// Executes a pre-resolved ref-action entry using the provided `context` for
-/// session identity and trace emission. Callers with a live `CommandContext`
-/// (e.g. from `AdAdapter::command_context` in the FFI layer) pass it through so
-/// that trace events carry the correct session id.
+/// session identity and trace emission. Prefer this over `execute_entry` when
+/// a real `CommandContext` is available (e.g. from `AdAdapter::command_context`
+/// in the FFI layer), so that trace events carry the correct session id.
 ///
 /// Trace records use a role/path-derived label for the `"ref"` field so that
 /// FFI call-site events are distinguishable in multi-element trace logs. The
@@ -362,6 +353,17 @@ pub fn execute_entry_with_context(
         request,
         dispatch_resolved,
     )
+}
+
+/// Executes a pre-resolved ref-action entry with a default (no-session,
+/// no-trace) `CommandContext`. Existing callers outside the FFI layer that do
+/// not have a live session context continue to use this entry point unchanged.
+pub fn execute_entry(
+    adapter: &dyn PlatformAdapter,
+    entry: &RefEntry,
+    request: ActionRequest,
+) -> Result<ActionResult, AdapterError> {
+    execute_entry_with_context(adapter, entry, request, &CommandContext::default())
 }
 
 pub(crate) fn into_adapter_error(err: AppError) -> AdapterError {

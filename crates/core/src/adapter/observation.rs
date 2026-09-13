@@ -93,15 +93,6 @@ pub trait ObservationOps: Send + Sync {
         Err(AdapterError::not_supported("resolve_locator_anchor"))
     }
 
-    fn get_subtree(
-        &self,
-        _handle: &NativeHandle,
-        _opts: &TreeOptions,
-        _deadline: Deadline,
-    ) -> Result<AccessibilityNode, AdapterError> {
-        Err(AdapterError::not_supported("get_subtree"))
-    }
-
     fn list_surfaces(
         &self,
         _process: crate::ProcessIdentity,
@@ -131,6 +122,15 @@ pub trait ObservationOps: Send + Sync {
         _deadline: Deadline,
     ) -> Result<Option<String>, AdapterError> {
         Err(AdapterError::not_supported("get_live_value"))
+    }
+
+    /// Selected text offsets in UTF-16 code units, or unavailable evidence.
+    fn get_text_selection(
+        &self,
+        _handle: &NativeHandle,
+        _deadline: Deadline,
+    ) -> Result<Option<std::ops::Range<usize>>, AdapterError> {
+        Err(AdapterError::not_supported("get_text_selection"))
     }
 
     fn get_live_state(
