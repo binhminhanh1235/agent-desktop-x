@@ -228,7 +228,7 @@ fn uncertain_drag_hides_the_overlay_without_claiming_a_landing() {
     let cancel = presented.last().expect("cancel control");
     assert!(cancel.is_hide());
     assert!(cancel.instruction().is_none());
-    assert_eq!(cancel.agent_id(), Some("agent-a"));
+    assert_eq!(cancel.agent_id(), None);
 }
 
 #[test]

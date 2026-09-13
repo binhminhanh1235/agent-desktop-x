@@ -25,4 +25,6 @@ pub(crate) use submit::{
 pub use timing::{CURSOR_ARRIVAL_TIMEOUT_MS, CURSOR_HIGHLIGHT_HOLD_MS, CURSOR_IDLE_REST_MS};
 
 #[cfg(test)]
+mod routing_tests;
+#[cfg(test)]
 mod tests;
