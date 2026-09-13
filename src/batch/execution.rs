@@ -67,6 +67,30 @@ pub(super) fn execute(
         }
 
         let current_step_deadline = step_deadline(deadline, commands[index].timeout_ms)?;
+
+        if let Some(ended_session) = session_ended_for(&commands[index]) {
+            let error = batch_session_ended(index, &commands[index].name, &ended_session);
+            push_small_entry(
+                &mut results,
+                &mut results_bytes,
+                not_started_entry(index, &commands[index].name, "session_ended", error),
+            );
+            if compound {
+                plan_trace.push(PlanTraceEntry::not_started(
+                    index,
+                    &commands[index].name,
+                    started.elapsed().as_millis(),
+                    "session_ended",
+                ));
+            }
+            if args.stop_on_error {
+                stopped = Some(json!({ "reason": "stop_on_error", "index": index }));
+                break;
+            }
+            pending_baseline = None;
+            continue;
+        }
+
         let current_baseline = pending_baseline.take();
         pending_baseline = match commands.get(index + 1).and_then(event_filter) {
             Some(filter) => match adapter.capture_signal_baseline(&filter, current_step_deadline) {
@@ -111,28 +135,6 @@ pub(super) fn execute(
             },
             None => None,
         };
-
-        if let Some(ended_session) = session_ended_for(&commands[index]) {
-            let error = batch_session_ended(index, &commands[index].name, &ended_session);
-            push_small_entry(
-                &mut results,
-                &mut results_bytes,
-                not_started_entry(index, &commands[index].name, "session_ended", error),
-            );
-            if compound {
-                plan_trace.push(PlanTraceEntry::not_started(
-                    index,
-                    &commands[index].name,
-                    started.elapsed().as_millis(),
-                    "session_ended",
-                ));
-            }
-            if args.stop_on_error {
-                stopped = Some(json!({ "reason": "stop_on_error", "index": index }));
-                break;
-            }
-            continue;
-        }
 
         let item_context = commands[index]
             .context
