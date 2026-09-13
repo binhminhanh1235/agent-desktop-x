@@ -7,7 +7,9 @@ const INK: [f64; 3] = [1.0, 1.0, 1.0];
 
 fn opaque_card(width: i32, height: i32) -> Surface {
     let mut surface = Surface::transparent(width, height);
-    surface.pixels.fill(BODY);
+    for pixel in &mut surface.pixels {
+        *pixel = BODY;
+    }
     surface
 }
 

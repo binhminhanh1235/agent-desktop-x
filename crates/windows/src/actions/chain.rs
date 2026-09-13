@@ -2,9 +2,9 @@
 //!
 //! Rung closures return a delivery outcome or `Err`. A genuine `Err` always
 //! aborts the chain and never falls through to a later rung. Its disposition,
-//! however, is not always the classifier's: chains that continue after an
-//! unverified delivery (`VALUE_WRITE_CHAIN`) can hard-error on a later rung
-//! after an earlier one already mutated the control, so an `Err` raised once
+//! however, is not always the classifier's: a chain that opts into continuing
+//! after an unverified delivery can hard-error on a later rung after an
+//! earlier one already mutated the control, so an `Err` raised once
 //! `delivery_occurred` on the recorded steps is upgraded to
 //! `delivered_unverified` before it leaves this function — the code,
 //! message, suggestion and platform detail are left untouched. Only a clean
@@ -14,12 +14,11 @@
 //! ships.
 
 use agent_desktop_core::{
-    ActionStep, AdapterError, Deadline, DeliverySemantics, ErrorCode, InteractionPolicy,
-    StepMechanism,
+    ActionStep, ActionStepOutcome, AdapterError, Deadline, DeliverySemantics, ErrorCode,
+    InteractionPolicy, StepMechanism,
 };
 use std::time::{Duration, Instant};
 
-use crate::actions::post_state::delivery_occurred;
 use crate::system::permissions::ensure_budget;
 
 pub(crate) const INVOKE_LABEL: &str = "InvokePattern.Invoke";
@@ -155,6 +154,19 @@ pub(crate) fn rung_allowed(rung: &ChainRung<'_>, policy: InteractionPolicy) -> b
     !rung.requires_headed || policy.is_headed()
 }
 
+/// Re-dispositions an error raised after a rung already mutated the control.
+/// The caller has positive evidence of delivery, so the retry permission the
+/// inner error carried no longer describes the world the caller is in.
+pub(crate) fn after_delivery(error: AdapterError) -> AdapterError {
+    error.with_disposition(DeliverySemantics::delivered_unverified())
+}
+
+pub(crate) fn delivery_occurred(steps: &[ActionStep]) -> bool {
+    steps
+        .iter()
+        .any(|step| matches!(step.outcome, ActionStepOutcome::Succeeded))
+}
+
 pub(crate) fn exhaustion_disposition(steps: &[ActionStep]) -> DeliverySemantics {
     if delivery_occurred(steps) {
         DeliverySemantics::delivered_unverified()
@@ -196,3 +208,10 @@ mod tests;
 #[cfg(test)]
 #[path = "chain_budget_tests.rs"]
 mod budget_tests;
+
+/// Split from `chain_tests.rs` for the per-file line cap: this module owns the
+/// fallthrough policy the shipped value-write chain declares, as distinct from
+/// the general engine mechanism `chain_tests.rs` exercises.
+#[cfg(test)]
+#[path = "chain_policy_tests.rs"]
+mod policy_tests;

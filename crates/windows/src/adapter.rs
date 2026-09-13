@@ -65,8 +65,7 @@ impl ObservationOps for WindowsAdapter {
 
     /// The FFI legacy entrypoint: a thin wrapper over the same `observe_tree`
     /// path the binary's `snapshot` uses (mirroring
-    /// `crates/macos/src/tree/adapter.rs`). `get_subtree` has no live caller
-    /// on any platform and stays unimplemented.
+    /// `crates/macos/src/tree/adapter.rs`).
     fn get_tree(
         &self,
         window: &WindowInfo,
@@ -110,6 +109,18 @@ impl ObservationOps for WindowsAdapter {
     ) -> Result<Option<String>, AdapterError> {
         let read = crate::tree::live_read::read_live_element(handle, deadline)?;
         Ok(crate::tree::live_read::live_value(&read))
+    }
+
+    /// The Text pattern selection read, in UTF-16 code units, that `TypeText`
+    /// verification uses to predict the post-insertion value. Absent evidence
+    /// (no pattern, no selection, any read failure) is `Ok(None)`, which core
+    /// degrades to an unverified delivery.
+    fn get_text_selection(
+        &self,
+        handle: &NativeHandle,
+        deadline: Deadline,
+    ) -> Result<Option<std::ops::Range<usize>>, AdapterError> {
+        crate::tree::text_selection::get_text_selection(handle, deadline)
     }
 
     fn get_live_state(

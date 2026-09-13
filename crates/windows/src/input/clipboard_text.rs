@@ -5,7 +5,7 @@ use agent_desktop_core::{AdapterError, ErrorCode};
 const MAX_CLIPBOARD_TEXT_UTF16: usize = 1_000_000;
 
 pub(crate) fn decode_utf16_text(bytes: &[u8]) -> Result<String, AdapterError> {
-    if !bytes.len().is_multiple_of(2) {
+    if bytes.len() % 2 != 0 {
         return Err(payload_error(
             "CF_UNICODETEXT payload length is not a whole number of UTF-16 units",
         ));
@@ -45,9 +45,7 @@ pub(crate) fn encode_utf16_text(text: &str) -> Result<Vec<u8>, AdapterError> {
 
 fn read_utf16_units(bytes: &[u8]) -> Vec<u16> {
     bytes
-        .as_chunks::<2>()
-        .0
-        .iter()
+        .chunks_exact(2)
         .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
         .collect()
 }

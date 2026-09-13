@@ -166,7 +166,12 @@ mod tests {
 
         enumerate_top_level(|window| {
             visited.push(window.handle);
-            !std::mem::take(&mut first)
+            if first {
+                first = false;
+                false
+            } else {
+                true
+            }
         })
         .expect("enumeration succeeds");
 

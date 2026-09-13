@@ -35,7 +35,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     DestroyWindow, DispatchMessageW, EndMenu, GetMessageW, HMENU, IDC_ARROW, LoadCursorW,
     MF_STRING, MSG, PostMessageW, PostQuitMessage, RegisterClassExW, SW_SHOWNOACTIVATE, SetMenu,
     ShowWindow, TPM_LEFTBUTTON, TrackPopupMenu, TranslateMessage, WM_CLOSE, WM_DESTROY,
-    WM_ENTERMENULOOP, WM_EXITMENULOOP, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+    WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
 };
 
 use super::fixture_window;
@@ -193,7 +193,9 @@ fn open_context_menu(window: HWND) {
     if popup.is_null() {
         return;
     }
+    signal(MENU_STATE_UP);
     unsafe { TrackPopupMenu(popup, TPM_LEFTBUTTON, 0, 0, 0, window, std::ptr::null()) };
+    signal(MENU_STATE_DOWN);
 }
 
 unsafe extern "system" fn menu_window_proc(
@@ -209,14 +211,6 @@ unsafe extern "system" fn menu_window_proc(
         }
         WM_FIXTURE_DISMISS_MENU => {
             unsafe { EndMenu() };
-            0
-        }
-        WM_ENTERMENULOOP => {
-            signal(MENU_STATE_UP);
-            0
-        }
-        WM_EXITMENULOOP => {
-            signal(MENU_STATE_DOWN);
             0
         }
         WM_CLOSE => {
